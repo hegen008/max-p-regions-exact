@@ -76,8 +76,6 @@ class MaxPExact():
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self.I_set for k in self.K_set)))
         self.obj = value(self.model.objective)
 
-        print({f"{i}_{j}":value(self.t[i,j]) for i in self.I_set for j in self.I_set if j > i})
-
         assigned = {(i,k) for i in self.I_set for k in self.K_set for c in self.C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:
             self.regions[i] = k
