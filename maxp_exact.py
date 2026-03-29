@@ -10,6 +10,34 @@ def _bound_num_regions(spatial_attr, threshold):
     under_thres //= threshold
     return over_thres + under_thres
 
+def _can_split(spatial_attr, threshold, path):
+    attr_list = spatial_attr[path]
+    from_head = np.cumsum(attr_list) >= threshold
+    from_tail = np.cumsum(attr_list[::-1])[::-1] >= threshold
+    split_points = from_head[:-1] & from_tail[1:]
+    return np.any(split_points)
+
+def _recursive_step(weights, spatial_attr, threshold, path, excluded):
+    if _can_split(spatial_attr, threshold, path):
+        return len(path) - 2
+    if not (set(weights.neighbors[path[0]]) - excluded):
+        return len(path) - 1
+    max_q = 0
+    for next in weights.neighbors[path[0]]:
+        if next not in excluded:
+            depth = _recursive_step(weights, spatial_attr, threshold, [next] + path, excluded | set(weights.neighbors[path[0]]))
+            if depth > max_q:
+                max_q = depth
+    return max_q
+
+def _bound_contiguity(weights, spatial_attr, threshold):
+    max_q = 0
+    for i in range(len(spatial_attr)):
+        depth = _recursive_step(weights, spatial_attr, threshold, [i], set())
+        if depth > max_q:
+            max_q = depth
+    return max_q
+
 @dataclass
 class MaxPConfig:
     bound_num_regions: bool = False
@@ -56,7 +84,10 @@ class MaxPExact():
             self._K_set = range(_bound_num_regions(self.spatial_attr, self.threshold))
         else:
             self._K_set = range(self.num_areas)
-        self._C_set = range(self.num_areas)
+        if config.bound_contiguity:
+            self._C_set = range(_bound_contiguity(self.spatial_weights, self.spatial_attr, self.threshold))
+        else:
+            self._C_set = range(self.num_areas)
 
         # Decision variables
         self.x = LpVariable.dicts("var_x", (self._I_set, self._K_set, self._C_set), cat="Binary")
