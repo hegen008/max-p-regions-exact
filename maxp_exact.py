@@ -19,9 +19,9 @@ def _can_split(spatial_attr, threshold, path):
 
 def _recursive_step(weights, spatial_attr, threshold, path, excluded):
     if _can_split(spatial_attr, threshold, path):
-        return len(path) - 2
-    if not (set(weights.neighbors[path[0]]) - excluded):
         return len(path) - 1
+    if not (set(weights.neighbors[path[0]]) - excluded):
+        return len(path)
     max_q = 0
     for next in weights.neighbors[path[0]]:
         if next not in excluded:
@@ -37,6 +37,15 @@ def _bound_contiguity(weights, spatial_attr, threshold):
         if depth > max_q:
             max_q = depth
     return max_q
+
+def _standardize_solution(solution):
+    id_map = {}
+    counter = 0
+    for item in solution:
+        if item not in id_map: # new region ID
+            id_map[item] = counter
+            counter += 1
+    return [id_map[s] for s in solution]
 
 @dataclass
 class MaxPConfig:
@@ -131,5 +140,6 @@ class MaxPExact():
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:
             self.regions[i] = k
+        self.regions = _standardize_solution(self.regions)
 
     
