@@ -57,18 +57,30 @@ class MaxPExact():
         self.model += lpSum(self.x[i][j][0] for i in self.I_set for j in self.K_set) * self.weight_factor + lpSum(self.t[i,j] * self.sim_mat[i][j] for i in self.I_set for j in self.I_set if j > i), "Objective"
 
         # Define base model constraints
-        for k in self.K_set:
-            self.model += lpSum(self.x[i][k][0] for i in self.I_set) <= 1 #, f"Single_Root_{k}"
-            self.model += lpSum(self.x[i][k][c] * self.spatial_attr[i] for i in self.I_set for c in self.C_set) >= self.threshold * lpSum(self.x[i][k][0] for i in self.I_set) #, f"Threshold_{k}"
-        for i in self.I_set:
-            self.model += lpSum(self.x[i][k][c] for k in self.K_set for c in self.C_set) == 1 #, f"Single_Assignment_{i}"
-            for k in self.K_set:
-                for c in self.C_set:
-                    if c > 0:
-                        self.model += self.x[i][k][c] <= lpSum(self.x[j][k][c-1] for j in self.spatial_weights.neighbors[i]) #, f"Adjacency_{i}_{k}_{c}"
-                for j in self.I_set:
-                    if j > i:
-                        self.model += self.t[i,j] <= lpSum(self.x[i][k][c] - self.x[j][k][c] for c in self.C_set) + 1 #, f"x_t_Matching_{i}_{j}_{k}"
+        self.model.extend([ # Single Root Constraints
+            lpSum(self.x[i][k][0] for i in self.I_set) <= 1
+            for k in self.K_set
+        ]) 
+        self.model.extend([ # Threshold Constraints
+            lpSum(self.x[i][k][c] * self.spatial_attr[i] for i in self.I_set for c in self.C_set) >= self.threshold * lpSum(self.x[i][k][0] for i in self.I_set)
+            for k in self.K_set
+        ])
+        self.model.extend([ # Single Assignment Constraints
+            lpSum(self.x[i][k][c] for k in self.K_set for c in self.C_set) == 1
+            for i in self.I_set
+        ])
+        self.model.extend([ # Adjacency Constraints
+            self.x[i][k][c] <= lpSum(self.x[j][k][c-1] for j in self.spatial_weights.neighbors[i])
+            for i in self.I_set 
+            for k in self.K_set 
+            for c in self.C_set if c > 0
+        ])
+        self.model.extend([ # x-t Matching Constraints
+            self.t[i,j] <= lpSum(self.x[i][k][c] - self.x[j][k][c] for c in self.C_set) + 1
+            for i in self.I_set 
+            for j in self.I_set if j > i 
+            for k in self.K_set
+        ])
 
     # solve MIP model
     def solve(self, time):
