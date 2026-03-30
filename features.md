@@ -12,8 +12,8 @@
 - [x] Preassign Roots
 - [x] Exclude Roots
 - [ ] Sort Regions
-- [ ] Maximize Root Node
-- [ ] Minimize Adjacency Order
+- [x] Maximize Root Node
+- [x] Minimize Adjacency Order
 
 ### Additional Strengthening Strategies from Thesis
 - [ ] Split independent subproblems
@@ -27,6 +27,7 @@
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
 - [ ] Gracefully handle memory issues
+- [ ] Handle default and trivial solutions
 
 ### User Inputs
 - [ ] Input gap tolerance

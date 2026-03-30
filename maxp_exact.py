@@ -23,9 +23,9 @@ def _recursive_step(weights, spatial_attr, threshold, path, excluded):
     if not (set(weights.neighbors[path[0]]) - excluded):
         return len(path)
     max_q = 0
-    for next in weights.neighbors[path[0]]:
-        if next not in excluded:
-            depth = _recursive_step(weights, spatial_attr, threshold, [next] + path, excluded | set(weights.neighbors[path[0]]))
+    for next_ind in weights.neighbors[path[0]]:
+        if next_ind not in excluded:
+            depth = _recursive_step(weights, spatial_attr, threshold, [next_ind] + path, excluded | set(weights.neighbors[path[0]]))
             if depth > max_q:
                 max_q = depth
     return max_q
@@ -162,6 +162,21 @@ class MaxPExact():
                     self.x[i][idx][0] == 1
                     for idx,i in enumerate(over_thresh)
                 ])
+        if config.max_attr_for_root:
+            self.model.extend([
+                lpSum(self.spatial_attr[j] * self.x[j][k][0] for j in self._I_set) >= self.spatial_attr * self.x[i][k][c]
+                for c in self._C_set if c > 0
+                for i in self._I_set if i not in excluded_roots
+                for k in self._K_set
+            ])
+        if config.min_adj_order:
+            self.model.extend([
+                self.num_areas * (1 - self.x[i][k][c]) >= lpSum(self.x[j][k][d] for j in self.spatial_weights.neighbors[i] for d in range(0,c-1))
+                for c in self._C_set if c > 1
+                for i in self._I_set
+                for k in self._K_set
+            ])
+            
 
 
     # solve MIP model
