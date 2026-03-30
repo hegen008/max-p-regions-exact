@@ -47,6 +47,21 @@ def _standardize_solution(solution):
             counter += 1
     return [id_map[s] for s in solution]
 
+def _find_excluded_roots(weights, spatial_attr, threshold):
+    excluded = set()
+    for i in sorted(range(len(spatial_attr)), key=lambda i: spatial_attr[i]):
+        if spatial_attr[i] >= threshold:
+            break
+        contig_excl = {i}
+        while True:
+            size = len(contig_excl)
+            contig_excl |= {neigh for ex in contig_excl for neigh in weights.neighbors[ex] if neigh in excluded}
+            if len(contig_excl) == size:
+                break
+        if sum(spatial_attr[ex] for ex in contig_excl) < threshold:
+            excluded.add(i)
+    return excluded
+
 @dataclass
 class MaxPConfig:
     bound_num_regions: bool = False
@@ -130,13 +145,19 @@ class MaxPExact():
             for j in self._I_set if j > i 
             for k in self._K_set
         ])
-        if config.preassign_roots:
-            print("Preassigning Roots")
+        excluded_roots = set()
+        if config.exclude_roots: # Exclude Roots
+            excluded_roots = _find_excluded_roots(self.spatial_weights, self.spatial_attr, self.threshold)
+            self.model.extend([
+                lpSum(self.x[i][k][0] for k in self._K_set) == 0
+                for i in excluded_roots
+            ])
+        if config.preassign_roots: # Preassign Roots
             if max(self.spatial_attr) < self.threshold:
-                self.model += self.x[np.argmax(self.spatial_attr)][0][0] == 1
+                temp_attr = np.array(self.spatial_attr, copy=True)[list(excluded_roots)] = -np.inf
+                self.model += self.x[np.argmax(temp_attr)][0][0] == 1
             else:
                 over_thresh = [i for i in self._I_set if self.spatial_attr[i] >= self.threshold]
-                print(over_thresh)
                 self.model.extend([
                     self.x[i][idx][0] == 1
                     for idx,i in enumerate(over_thresh)

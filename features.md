@@ -10,7 +10,7 @@
 - [x] Upper bound on contiguity order
 - [ ] Merge Leaf Nodes
 - [x] Preassign Roots
-- [ ] Exclude Roots
+- [x] Exclude Roots
 - [ ] Sort Regions
 - [ ] Maximize Root Node
 - [ ] Minimize Adjacency Order
