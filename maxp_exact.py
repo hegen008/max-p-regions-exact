@@ -130,6 +130,18 @@ class MaxPExact():
             for j in self._I_set if j > i 
             for k in self._K_set
         ])
+        if config.preassign_roots:
+            print("Preassigning Roots")
+            if max(self.spatial_attr) < self.threshold:
+                self.model += self.x[np.argmax(self.spatial_attr)][0][0] == 1
+            else:
+                over_thresh = [i for i in self._I_set if self.spatial_attr[i] >= self.threshold]
+                print(over_thresh)
+                self.model.extend([
+                    self.x[i][idx][0] == 1
+                    for idx,i in enumerate(over_thresh)
+                ])
+
 
     # solve MIP model
     def solve(self, time):

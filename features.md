@@ -9,7 +9,7 @@
 - [x] Upper bound on number of regions
 - [x] Upper bound on contiguity order
 - [ ] Merge Leaf Nodes
-- [ ] Preassign Roots
+- [x] Preassign Roots
 - [ ] Exclude Roots
 - [ ] Sort Regions
 - [ ] Maximize Root Node
