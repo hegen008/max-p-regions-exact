@@ -38,6 +38,7 @@
 - [ ] Automatically calculate dissimilarity from attribute
 - [ ] Automatically calculate border lengths
 - [ ] Specifiy type of contiguity
+- [ ] Store Unique IDs
 
 ### Accessing the Solution
 - [ ] Seperately store optimal and best known solution
