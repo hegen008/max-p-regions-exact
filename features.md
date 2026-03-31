@@ -8,7 +8,7 @@
 ### Beginning Strenthening Strategies from Thesis
 - [x] Upper bound on number of regions
 - [x] Upper bound on contiguity order
-- [ ] Merge Leaf Nodes
+- [x] Merge Leaf Nodes
 - [x] Preassign Roots
 - [x] Exclude Roots
 - [x] Sort Regions
@@ -73,3 +73,4 @@
 - [ ] Full solves feasible, infeasible, time limit, memory limit
 - [ ] Individually test each algorithm
 - [ ] Test all combinations of interacting methods
+- [ ] Add example data to repo

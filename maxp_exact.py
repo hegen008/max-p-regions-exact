@@ -18,23 +18,23 @@ def _can_split(spatial_attr, threshold, path):
     split_points = from_head[:-1] & from_tail[1:]
     return np.any(split_points)
 
-def _recursive_step(weights, spatial_attr, threshold, path, excluded):
+def _recursive_step(spatial_weights, spatial_attr, threshold, path, excluded):
     if _can_split(spatial_attr, threshold, path):
         return len(path) - 1
-    if not (set(weights.neighbors[path[0]]) - excluded):
+    if not (set(spatial_weights.neighbors[path[0]]) - excluded):
         return len(path)
     max_q = 0
-    for next_ind in weights.neighbors[path[0]]:
+    for next_ind in spatial_weights.neighbors[path[0]]:
         if next_ind not in excluded:
-            depth = _recursive_step(weights, spatial_attr, threshold, [next_ind] + path, excluded | set(weights.neighbors[path[0]]))
+            depth = _recursive_step(spatial_weights, spatial_attr, threshold, [next_ind] + path, excluded | set(spatial_weights.neighbors[path[0]]))
             if depth > max_q:
                 max_q = depth
     return max_q
 
-def _bound_contiguity(weights, spatial_attr, threshold):
+def _bound_contiguity(spatial_weights, spatial_attr, threshold):
     max_q = 0
     for i in range(len(spatial_attr)):
-        depth = _recursive_step(weights, spatial_attr, threshold, [i], set())
+        depth = _recursive_step(spatial_weights, spatial_attr, threshold, [i], set())
         if depth > max_q:
             max_q = depth
     return max_q
@@ -48,7 +48,7 @@ def _standardize_solution(solution):
             counter += 1
     return np.array([id_map[s] for s in solution])
 
-def _find_excluded_roots(weights, spatial_attr, threshold):
+def _find_excluded_roots(spatial_weights, spatial_attr, threshold):
     excluded = set()
     for i in sorted(range(len(spatial_attr)), key=lambda i: spatial_attr[i]):
         if spatial_attr[i] >= threshold:
@@ -56,13 +56,30 @@ def _find_excluded_roots(weights, spatial_attr, threshold):
         contig_excl = {i}
         while True:
             size = len(contig_excl)
-            contig_excl |= {neigh for ex in contig_excl for neigh in weights.neighbors[ex] if neigh in excluded}
+            contig_excl |= {neigh for ex in contig_excl for neigh in spatial_weights.neighbors[ex] if neigh in excluded}
             if len(contig_excl) == size:
                 break
         if sum(spatial_attr[ex] for ex in contig_excl) < threshold:
             excluded.add(i)
     return excluded
 
+def _merge_leaf_nodes(spatial_weights, spatial_attr, sim_mat, index_mapping, threshold):
+    while True:
+        merge_candidates = [ind for ind,i in enumerate(spatial_attr) if i < threshold and len(spatial_weights.neighbors[ind]) == 1]
+        if not merge_candidates:
+            return spatial_weights, spatial_attr, sim_mat, index_mapping
+        to_merge = merge_candidates[0]
+        merge_neigh = spatial_weights.neighbors[to_merge][0]
+        mask = np.ones(spatial_weights.sparse.shape[0], dtype=bool)
+        mask[to_merge] = False
+        spatial_weights = weights.W.from_sparse(spatial_weights.sparse[mask, :][:, mask])
+        spatial_attr[merge_neigh] += spatial_attr[to_merge]
+        spatial_attr = spatial_attr[mask]
+        sim_mat = sim_mat[mask, :][:, mask]
+        index_mapping[merge_neigh] |= index_mapping[to_merge]
+        index_mapping = {(k-1 if k > to_merge else k):v for k,v in index_mapping.items() if k != threshold}
+
+        
 @dataclass
 class MaxPConfig:
     bound_num_regions: bool = False
@@ -105,25 +122,28 @@ class MaxPExact():
         copy_sim_mat = deepcopy(self.sim_mat)
         copy_spatial_weights = deepcopy(self.spatial_weights)
 
-        self.index_mapping = {i:i for i in range(self.num_areas)}
+        self.index_mapping = {i:{i} for i in range(self.num_areas)}
+
+        if config.merge_leaves:
+            copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping = _merge_leaf_nodes(copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping, self.threshold)
 
         if config.sort_region_roots and config.preassign_roots:
             sort_idx = np.argsort(copy_spatial_attr)[::-1]
             copy_spatial_attr = copy_spatial_attr[sort_idx]
             copy_sim_mat = copy_sim_mat[sort_idx,:][:,sort_idx]
             copy_spatial_weights = weights.W.from_sparse(copy_spatial_weights.sparse[sort_idx,:][:,sort_idx])
-            self.index_mapping = {ind:i for ind,i in enumerate(sort_idx)}
+            self.index_mapping = {ind:self.index_mapping[i] for ind,i in enumerate(sort_idx)}
 
         # Define iterative ranges
-        self._I_set = range(self.num_areas)
+        self._I_set = range(len(copy_spatial_attr))
         if config.bound_num_regions:
             self._K_set = range(_bound_num_regions(copy_spatial_attr, self.threshold))
         else:
-            self._K_set = range(self.num_areas)
+            self._K_set = range(len(copy_spatial_attr))
         if config.bound_contiguity:
             self._C_set = range(_bound_contiguity(copy_spatial_weights, copy_spatial_attr, self.threshold))
         else:
-            self._C_set = range(self.num_areas)
+            self._C_set = range(len(copy_spatial_attr))
 
         # Initialize model
         self.model = LpProblem("MaxP_Model", LpMaximize)
@@ -186,7 +206,7 @@ class MaxPExact():
             ])
         if config.min_adj_order:
             self.model.extend([
-                self.num_areas * (1 - self.x[i][k][c]) >= lpSum(self.x[j][k][d] for j in copy_spatial_weights.neighbors[i] for d in range(0,c-1))
+                len(copy_spatial_attr) * (1 - self.x[i][k][c]) >= lpSum(self.x[j][k][d] for j in copy_spatial_weights.neighbors[i] for d in range(0,c-1))
                 for c in self._C_set if c > 1
                 for i in self._I_set
                 for k in self._K_set
@@ -205,7 +225,8 @@ class MaxPExact():
 
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:
-            self.regions[self.index_mapping[i]] = k
+            for ind in self.index_mapping[i]:
+                self.regions[ind] = k
         self.regions = _standardize_solution(self.regions)
 
     
