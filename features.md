@@ -11,7 +11,7 @@
 - [ ] Merge Leaf Nodes
 - [x] Preassign Roots
 - [x] Exclude Roots
-- [ ] Sort Regions
+- [x] Sort Regions
 - [x] Maximize Root Node
 - [x] Minimize Adjacency Order
 
@@ -24,10 +24,12 @@
 
 ### Broad Application
 - [ ] Use similarity or disimilarity
+- [x] Interal sort by default, external retain original
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
 - [ ] Gracefully handle memory issues
 - [ ] Handle default and trivial solutions
+- [ ] Weight similarity to always be right of decimal
 
 ### User Inputs
 - [ ] Input gap tolerance
@@ -58,6 +60,7 @@
 - [ ] Allow disjoint solving where progress is saved
 
 ### Extra Reformulations not from Thesis
+- [ ] Both types of sorting regions
 - [ ] Independent splits with non-adjacent similarities
 - [ ] Parallelize independent splits
 - [ ] Convert t to continuous <= 1
