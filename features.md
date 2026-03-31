@@ -24,7 +24,6 @@
 
 ### Broad Application
 - [ ] Use similarity or disimilarity
-- [x] Interal sort by default, external retain original
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
 - [ ] Gracefully handle memory issues
