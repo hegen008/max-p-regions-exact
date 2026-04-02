@@ -34,6 +34,7 @@
 - [ ] Input gap tolerance - **MVP**
 - [ ] Ability to input geopandas - **MVP**
 - [ ] Ability to write to geopandas column - **MVP**
+- [ ] Error checking in the init function
 - [ ] Automatically calculate dissimilarity from attribute
 - [ ] Automatically calculate border lengths
 - [ ] Specifiy type of contiguity
