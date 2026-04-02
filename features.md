@@ -23,7 +23,7 @@
 - [ ] Inverse objective
 
 ### Broad Application
-- [ ] Use similarity or disimilarity - **MVP**
+- [x] Use similarity or disimilarity - **MVP**
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
 - [ ] Gracefully handle memory issues

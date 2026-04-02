@@ -64,12 +64,14 @@ def _find_excluded_roots(spatial_weights, spatial_attr, threshold):
     return excluded
 
 def _merge_leaf_nodes(spatial_weights, spatial_attr, sim_mat, index_mapping, threshold):
+    adjustment = 0
     while True:
         merge_candidates = [ind for ind,i in enumerate(spatial_attr) if i < threshold and len(spatial_weights.neighbors[ind]) == 1]
         if not merge_candidates:
-            return spatial_weights, spatial_attr, sim_mat, index_mapping
+            return spatial_weights, spatial_attr, sim_mat, index_mapping, adjustment
         to_merge = merge_candidates[0]
         merge_neigh = spatial_weights.neighbors[to_merge][0]
+        adjustment += sim_mat[to_merge, merge_neigh]
         mask = np.ones(spatial_weights.sparse.shape[0], dtype=bool)
         mask[to_merge] = False
         spatial_weights = weights.W.from_sparse(spatial_weights.sparse[mask, :][:, mask])
@@ -95,12 +97,13 @@ class MaxPConfig:
 
 class MaxPExact():
     # array initialization
-    def __init__(self, adj_mat, sim_mat, spatial_attr, threshold):
+    def __init__(self, adj_mat, sim_mat, spatial_attr, threshold, dissimilarity=False):
         # Initialize data
-        self.adj_mat = adj_mat
-        self.sim_mat = sim_mat
-        self.spatial_attr = spatial_attr
+        self.adj_mat = deepcopy(adj_mat)
+        self.sim_mat = deepcopy(sim_mat)
+        self.spatial_attr = deepcopy(spatial_attr)
         self.threshold = threshold
+        self.dissimilarity = dissimilarity
 
         # Initialize derived information
         self.num_areas = len(self.spatial_attr)
@@ -109,6 +112,11 @@ class MaxPExact():
         self.maxp = None
         self.obj = None
         self.weight_factor = 10**(1 + np.floor(np.log10(np.sum(np.triu(self.sim_mat, k=1)))))
+        self._obj_adj = 0
+
+        if self.dissimilarity:
+            self._obj_adj += np.sum(np.triu(self.sim_mat, k=1))
+            self.sim_mat *= -1
 
     # geopandas initialization
     @classmethod
@@ -125,7 +133,8 @@ class MaxPExact():
         self.index_mapping = {i:{i} for i in range(self.num_areas)}
 
         if config.merge_leaves:
-            copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping = _merge_leaf_nodes(copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping, self.threshold)
+            copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping, merged_obj = _merge_leaf_nodes(copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping, self.threshold)
+            self._obj_adj += merged_obj
 
         if config.sort_region_roots and config.preassign_roots:
             sort_idx = np.argsort(copy_spatial_attr)[::-1]
@@ -174,12 +183,20 @@ class MaxPExact():
             for k in self._K_set 
             for c in self._C_set if c > 0
         ])
-        self.model.extend([ # x-t Matching Constraints
-            self.t[i,j] <= lpSum(self.x[i][k][c] - self.x[j][k][c] for c in self._C_set) + 1
-            for i in self._I_set 
-            for j in self._I_set if j > i 
-            for k in self._K_set
-        ])
+        if self.dissimilarity:
+            self.model.extend([ # x-t Matching Constraints
+                self.t[i,j] >= lpSum(self.x[i][k][c] + self.x[j][k][c] for c in self._C_set) - 1
+                for i in self._I_set 
+                for j in self._I_set if j > i 
+                for k in self._K_set
+            ])
+        else:
+            self.model.extend([ # x-t Matching Constraints
+                self.t[i,j] <= lpSum(self.x[i][k][c] - self.x[j][k][c] for c in self._C_set) + 1
+                for i in self._I_set 
+                for j in self._I_set if j > i 
+                for k in self._K_set
+            ])
         excluded_roots = set()
         if config.exclude_roots: # Exclude Roots
             excluded_roots = _find_excluded_roots(copy_spatial_weights, copy_spatial_attr, self.threshold)
@@ -221,7 +238,7 @@ class MaxPExact():
     def solve(self, time):
         self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=['mip_abs_gap=1e-4', 'mip_rel_gap=1e-10']))
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
-        self.obj = value(self.model.objective)
+        self.obj = value(self.model.objective) + self._obj_adj 
 
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:
