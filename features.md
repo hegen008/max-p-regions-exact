@@ -23,7 +23,7 @@
 - [ ] Inverse objective
 
 ### Broad Application
-- [ ] Use similarity or disimilarity
+- [ ] Use similarity or disimilarity - **MVP**
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
 - [ ] Gracefully handle memory issues
@@ -31,9 +31,9 @@
 - [ ] Weight similarity to always be right of decimal
 
 ### User Inputs
-- [ ] Input gap tolerance
-- [ ] Ability to input geopandas
-- [ ] Ability to write to geopandas column
+- [ ] Input gap tolerance - **MVP**
+- [ ] Ability to input geopandas - **MVP**
+- [ ] Ability to write to geopandas column - **MVP**
 - [ ] Automatically calculate dissimilarity from attribute
 - [ ] Automatically calculate border lengths
 - [ ] Specifiy type of contiguity
@@ -42,7 +42,7 @@
 ### Accessing the Solution
 - [ ] Seperately store optimal and best known solution
 - [ ] Seperately store optimal and best known objective value
-- [ ] Store problem status
+- [ ] Store problem status - **MVP**
 - [ ] Access to MPS file
 
 ### Solve Tracking
