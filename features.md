@@ -32,12 +32,13 @@
 
 ### User Inputs
 - [ ] Input gap tolerance - **MVP**
-- [ ] Ability to input geopandas - **MVP**
-- [ ] Ability to write to geopandas column - **MVP**
+- [x] Ability to input geopandas - **MVP**
+- [x] Ability to write to geopandas column - **MVP**
+- [ ] Use integer or float as threshold attribute
 - [ ] Error checking in the init function
-- [ ] Automatically calculate dissimilarity from attribute
+- [x] Automatically calculate dissimilarity from attribute
 - [ ] Automatically calculate border lengths
-- [ ] Specifiy type of contiguity
+- [x] Specifiy type of contiguity
 - [ ] Store Unique IDs
 
 ### Accessing the Solution

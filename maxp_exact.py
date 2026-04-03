@@ -2,7 +2,8 @@ from pulp import *
 import highspy
 import numpy as np
 from libpysal import weights
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from scipy.spatial.distance import pdist, squareform
 from copy import deepcopy
 
 def _bound_num_regions(spatial_attr, threshold):
@@ -79,7 +80,7 @@ def _merge_leaf_nodes(spatial_weights, spatial_attr, sim_mat, index_mapping, thr
         spatial_attr = spatial_attr[mask]
         sim_mat = sim_mat[mask, :][:, mask]
         index_mapping[merge_neigh] |= index_mapping[to_merge]
-        index_mapping = {(k-1 if k > to_merge else k):v for k,v in index_mapping.items() if k != threshold}
+        index_mapping = {(k-1 if k > to_merge else k):v for k,v in index_mapping.items()}
 
         
 @dataclass
@@ -87,8 +88,6 @@ class MaxPConfig:
     bound_num_regions: bool = False
     bound_contiguity: bool = False
     merge_leaves: bool = False
-    independent_split: bool = False
-    reduce_size_of_t: bool = False
     preassign_roots: bool = False
     exclude_roots: bool = False
     max_attr_for_root: bool = False
@@ -120,8 +119,14 @@ class MaxPExact():
 
     # geopandas initialization
     @classmethod
-    def from_gpd(self):
-        pass
+    def from_gdf(cls, gdf, weights, dissim_attr, threshold_attr, threshold):
+        attr = np.atleast_2d(gdf[dissim_attr].values)
+        if attr.shape[0] == 1:
+            attr = attr.T
+        dist_matrix = squareform(pdist(attr, metric="cityblock"))
+        threshold_array = gdf[threshold_attr].values
+        instance = cls(weights.full()[0], dist_matrix, threshold_array, threshold, dissimilarity=True)
+        return instance
 
     # construct MIP model
     def construct(self, config):
@@ -206,7 +211,8 @@ class MaxPExact():
             ])
         if config.preassign_roots: # Preassign Roots
             if max(copy_spatial_attr) < self.threshold:
-                temp_attr = np.array(copy_spatial_attr, copy=True)[list(excluded_roots)] = -np.inf
+                temp_attr = np.array(copy_spatial_attr, copy=True)
+                temp_attr[list(excluded_roots)] = -1
                 self.model += self.x[np.argmax(temp_attr)][0][0] == 1
             else:
                 over_thresh = [i for i in self._I_set if copy_spatial_attr[i] >= self.threshold]
