@@ -241,8 +241,8 @@ class MaxPExact():
             ])
 
     # solve MIP model
-    def solve(self, time):
-        self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=['mip_abs_gap=1e-4', 'mip_rel_gap=1e-10']))
+    def solve(self, time, abs_gap=1e-7, rel_gap=1e-4):
+        self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=[f'mip_abs_gap={abs_gap}', f'mip_rel_gap={rel_gap}']))
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
         self.obj = value(self.model.objective) + self._obj_adj 
 

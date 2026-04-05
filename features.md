@@ -31,7 +31,7 @@
 - [ ] Weight similarity to always be right of decimal
 
 ### User Inputs
-- [ ] Input gap tolerance - **MVP**
+- [x] Input gap tolerance - **MVP**
 - [x] Ability to input geopandas - **MVP**
 - [x] Ability to write to geopandas column - **MVP**
 - [ ] Use integer or float as threshold attribute
