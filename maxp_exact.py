@@ -112,6 +112,7 @@ class MaxPExact():
         self.obj = None
         self.weight_factor = 10**(1 + np.floor(np.log10(np.sum(np.triu(self.sim_mat, k=1)))))
         self._obj_adj = 0
+        self.status = "Unconstructed"
 
         if self.dissimilarity:
             self._obj_adj += np.sum(np.triu(self.sim_mat, k=1))
@@ -239,12 +240,14 @@ class MaxPExact():
                 lpSum(copy_spatial_attr[i] * self.x[i][k-1][0] for i in self._I_set) >= lpSum(copy_spatial_attr[i] * self.x[i][k][0] for i in self._I_set)
                 for k in self._K_set if k > 0
             ])
+        self.status = LpSolution[0]
 
     # solve MIP model
     def solve(self, time, abs_gap=1e-7, rel_gap=1e-4):
         self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=[f'mip_abs_gap={abs_gap}', f'mip_rel_gap={rel_gap}']))
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
         self.obj = value(self.model.objective) + self._obj_adj 
+        self.status = LpSolution[self.model.sol_status]
 
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:

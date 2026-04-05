@@ -29,6 +29,7 @@
 - [ ] Gracefully handle memory issues
 - [ ] Handle default and trivial solutions
 - [ ] Weight similarity to always be right of decimal
+- [ ] Index sorts rather than attribute sorts
 
 ### User Inputs
 - [x] Input gap tolerance - **MVP**
@@ -44,7 +45,7 @@
 ### Accessing the Solution
 - [ ] Seperately store optimal and best known solution
 - [ ] Seperately store optimal and best known objective value
-- [ ] Store problem status - **MVP**
+- [x] Store problem status - **MVP**
 - [ ] Access to MPS file
 
 ### Solve Tracking
