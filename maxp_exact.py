@@ -6,20 +6,101 @@ from dataclasses import dataclass
 from scipy.spatial.distance import pdist, squareform
 from copy import deepcopy
 
+# This class constructs and solves the max-p-regions problem using exact MILP solvers
+# The algorithms are based on my honors thesis at the Univeristy of Minnesota: Strengthening the Max-P-Regions Problem for the Confidentiality of Census Microdata (2026)
+# Author: Arlan Hegenbarth
+
 def _bound_num_regions(spatial_attr, threshold):
+    """
+    Calculates an upper bound for the number of regions in the optimal solution
+
+    Parameters
+    ----------
+
+    spatial_attr : ndarray of shape (n,), required
+        spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    Returns
+    -------
+
+    region_bound : int
+        An upper bound on the number of regions in the problem instance
+
+    """
     over_thres = np.sum(spatial_attr > threshold)
     under_thres = np.sum(spatial_attr[spatial_attr < threshold])
     under_thres //= threshold
-    return over_thres + under_thres
+    region_bound = over_thres + under_thres
+    return region_bound
+
 
 def _can_split(spatial_attr, threshold, path):
+    """
+    Determines if a path of input areas can be split into two regions that meet the minimum threshold requirement
+
+    Parameters
+    ----------
+
+    spatial_attr : ndarray of shape (n,), required
+        spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    path : list, required
+        list of indices representing the path that is being tested
+
+    Returns
+    -------
+
+    can_split : boolean
+        ``True`` if the path can be split into two parts that meet the minimum region threshold
+
+    """
     attr_list = spatial_attr[path]
     from_head = np.cumsum(attr_list) >= threshold
     from_tail = np.cumsum(attr_list[::-1])[::-1] >= threshold
     split_points = from_head[:-1] & from_tail[1:]
-    return np.any(split_points)
+    can_split = np.any(split_points)
+    return can_split
+
 
 def _recursive_step(spatial_weights, spatial_attr, threshold, path, excluded):
+    """
+    Take a recursive step on the depth first search to bound the maximum contiguity order
+
+    Parameters
+    ----------
+
+    spatial_weights : libpysal.weights.W
+        libpysal spatial weights object for input areas
+
+    spatial_attr : ndarray of shape (n,), required
+        spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    path : list, required
+        list of indices representing the path that is being tested.
+
+    excluded : set, required
+        list of indices that cannot be added to this path, because they are adjacent
+        to an area that is not the head 
+
+    Returns
+    -------
+
+    max_q : int
+        Maximum path length found by recursively adding areas to this path
+
+    """
     if _can_split(spatial_attr, threshold, path):
         return len(path) - 1
     if not (set(spatial_weights.neighbors[path[0]]) - excluded):
@@ -32,7 +113,30 @@ def _recursive_step(spatial_weights, spatial_attr, threshold, path, excluded):
                 max_q = depth
     return max_q
 
+
 def _bound_contiguity(spatial_weights, spatial_attr, threshold):
+    """
+    Find an upper bound for the maximum contiguity order
+
+    Parameters
+    ----------
+
+    spatial_weights : libpysal.weights.W
+        libpysal spatial weights object for input areas
+
+    spatial_attr : ndarray of shape (n,), required
+        spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    Returns
+    -------
+
+    max_q : int
+        Maximum path length found by recursively adding areas in a depth first search
+    """
     max_q = 0
     for i in range(len(spatial_attr)):
         depth = _recursive_step(spatial_weights, spatial_attr, threshold, [i], set())
@@ -40,16 +144,57 @@ def _bound_contiguity(spatial_weights, spatial_attr, threshold):
             max_q = depth
     return max_q
 
+
 def _standardize_solution(solution):
+    """
+    Standardizes the solution to use the same index to represent each region, 
+    regardless of indices used by MILP solution.
+
+    Parameters
+    ----------
+
+    solution : ndarray (n,)
+        A region assignment for the max-p-regions problem
+
+    Returns
+    -------
+
+    std_solution : ndarray (n,)
+        An index standardized max-p-regions problem solution
+    """
     id_map = {}
     counter = 0
     for item in solution:
         if item not in id_map: # new region ID
             id_map[item] = counter
             counter += 1
-    return np.array([id_map[s] for s in solution])
+    std_solution = np.array([id_map[s] for s in solution])
+    return std_solution
+
 
 def _find_excluded_roots(spatial_weights, spatial_attr, threshold):
+    """
+    Finds a set of areas that can excluded from being roots of an optimal solution
+
+    Parameters
+    ----------
+
+    spatial_weights : libpysal.weights.W
+        libpysal spatial weights object for input areas
+
+    spatial_attr : ndarray of shape (n,), required
+        spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    Returns
+    -------
+
+    excluded : set
+        A set of indices representing areas that can be excluded from being roots
+    """
     excluded = set()
     for i in sorted(range(len(spatial_attr)), key=lambda i: spatial_attr[i]):
         if spatial_attr[i] >= threshold:
@@ -64,7 +209,51 @@ def _find_excluded_roots(spatial_weights, spatial_attr, threshold):
             excluded.add(i)
     return excluded
 
+
 def _merge_leaf_nodes(spatial_weights, spatial_attr, sim_mat, index_mapping, threshold):
+    """
+    Merges input areas that are below the region threshold and only have one neighbor
+
+    Parameters
+    ----------
+
+    spatial_weights : libpysal.weights.W
+        Original libpysal spatial weights object for input areas
+
+    spatial_attr : ndarray of shape (n,), required
+        Original spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    sim_mat : ndarray of shape (n,n), required
+        Original non-negative symmetric adjacency matrix representing the similarities 
+        (or dissimilarities) between input areas.
+
+    index_mapping : dict, required
+        Original dictionary mapping MILP indices to input area indices
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    Returns
+    -------
+
+    spatial_weights : libpysal.weights.W
+        Updated libpysal spatial weights object for input areas
+
+    spatial_attr : ndarray of shape (n,)
+        Updated spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    sim_mat : ndarray of shape (n,n)
+        Updated non-negative symmetric adjacency matrix representing the similarities 
+        (or dissimilarities) between input areas.
+
+    index_mapping : dict
+        Updated dictionary mapping MILP indices to input area indices
+
+    adjustment : float
+        similarity attribute removed, needs to be added to adjust objective function to original
+    """
     adjustment = 0
     while True:
         merge_candidates = [ind for ind,i in enumerate(spatial_attr) if i < threshold and len(spatial_weights.neighbors[ind]) == 1]
@@ -78,13 +267,47 @@ def _merge_leaf_nodes(spatial_weights, spatial_attr, sim_mat, index_mapping, thr
         spatial_weights = weights.W.from_sparse(spatial_weights.sparse[mask, :][:, mask])
         spatial_attr[merge_neigh] += spatial_attr[to_merge]
         spatial_attr = spatial_attr[mask]
+        sim_mat[merge_neigh, :] += sim_mat[to_merge, :]
+        sim_mat[:, merge_neigh] += sim_mat[:, to_merge]
         sim_mat = sim_mat[mask, :][:, mask]
+        sim_mat[merge_neigh, merge_neigh] = 0
         index_mapping[merge_neigh] |= index_mapping[to_merge]
         index_mapping = {(k-1 if k > to_merge else k):v for k,v in index_mapping.items()}
 
         
 @dataclass
 class MaxPConfig:
+    """This class defines the max-p regions problem construction configuration.
+    Each parameter is a different strategy that can be used to strenghen the problem
+
+    Parameters
+    ----------
+
+    bound_num_regions :  boolean
+        A tighter upper bound for the number of regions in the optimal solution will be applied
+
+    bound_contiguity : boolean
+        A tighter upper bound for the maximum contiguity order will be applied
+
+    merge_leaves : boolean
+        Leaf nodes (areas with only one neighbor) will be merged with their neighbor when applicable
+    
+    preassign_roots : boolean
+        Some input areas will be preassigned as roots of certain regions
+
+    exclude_roots : boolean
+        Some input areas will excluded from being roots of a region
+    
+    max_attr_for_root : boolean
+        The input area with the largest spatially extensive attribute must be the region root
+
+    min_adj_order : boolean
+        The smallest possible adjacency order for each area must be used
+
+    sort_region_roots : boolean
+        The regions must be sorted by decreasing value of the spatially extensive attributes for the roots
+
+    """
     bound_num_regions: bool = False
     bound_contiguity: bool = False
     merge_leaves: bool = False
@@ -94,9 +317,66 @@ class MaxPConfig:
     min_adj_order: bool = False
     sort_region_roots: bool = False
 
+
 class MaxPExact():
+    """The max-p-regions problem involves the aggregation of n areas into an unknown
+    maximum number of homogeneous regions, while ensuring that each region is contiguous
+    and satisfies a minimum threshold value imposed on a predefined spatially extensive
+    attribute. This class is designed to solve the max-p-regions problem using a exact
+    optimization approach with optimization solvers.
+
+    Parameters
+    ----------
+
+    adj_mat : ndarray of shape (n,n), required
+        binary symmetric adjacency matrix between input areas.
+
+    sim_mat : ndarray of shape (n,n), required
+        non-negative symmetric adjacency matrix representing the similarities 
+        (or dissimilarities) between input areas.
+
+    spatial_attr : ndarray of shape (n,), required
+        spatial extensive attribute values for the input areas used for 
+        thresholding the regions
+
+    threshold : {int, float}, required
+        minimum spatially extensive attribute for each region
+
+    dissimilarity : boolean
+        Set to ``True`` if sim_mat represents dissimilarities.
+        If true, within-region dissimilarity will be minimized.
+        If false, within-region similarity will be maxmimized.
+
+    Attributes
+    ----------
+
+    num_areas : int
+        The number of input areas in the problem
+
+    spatial_weights : libpysal.weights.W
+        libpysal spatial weights object for input areas
+
+    regions : ndarray (n,)
+        Region assignments for the best solution with standardized indexing
+
+    maxp : int
+        The number of regions in the best solution
+
+    obj : float
+        The objective value in the best solution
+
+    weight_factor : float
+        The weighting factor (10^h) for the objective function
+
+    status : string
+        The current solve status of the problem
+
+    """
     # array initialization
     def __init__(self, adj_mat, sim_mat, spatial_attr, threshold, dissimilarity=False):
+        """
+        Initializes a max-p-regions problem from numpy arrays
+        """
         # Initialize data
         self.adj_mat = deepcopy(adj_mat)
         self.sim_mat = deepcopy(sim_mat)
@@ -118,9 +398,32 @@ class MaxPExact():
             self._obj_adj += np.sum(np.triu(self.sim_mat, k=1))
             self.sim_mat *= -1
 
+
     # geopandas initialization
     @classmethod
     def from_gdf(cls, gdf, weights, dissim_attr, threshold_attr, threshold):
+        """
+        Initializes a max-p-regions problem from a geopandas dataframe
+
+        Parameters
+        ----------
+
+        gdf : geopandas.GeoDataFrame, required
+            Geodataframe containing the original input areas
+
+        weights : libpysal.weights.W, required
+            Weights object created from the given geodataframe
+
+        dissim_attr : list, required
+            Strings for attribute names (columns of gdf) used for 
+            dissimilarity calculations
+
+        threshold_attr : string, required
+            The name of the spatial extensive attribute in the gdf
+
+        threshold : {int, float}, required
+            minimum spatially extensive attribute for each region
+        """
         attr = np.atleast_2d(gdf[dissim_attr].values)
         if attr.shape[0] == 1:
             attr = attr.T
@@ -129,17 +432,27 @@ class MaxPExact():
         instance = cls(weights.full()[0], dist_matrix, threshold_array, threshold, dissimilarity=True)
         return instance
 
-    # construct MIP model
+
+    # construct MILP model
     def construct(self, config):
+        """
+        Constructs a MILP formulation for the max-p-regions problem instance
+
+        Parameters
+        ----------
+
+        config: maxp_exact.MaxPConfig object, required
+            A MaxPConfig object for the strategies used to construct the MILP Problem
+        """
         # Copy input for modification
         copy_spatial_attr = deepcopy(self.spatial_attr)
         copy_sim_mat = deepcopy(self.sim_mat)
         copy_spatial_weights = deepcopy(self.spatial_weights)
 
-        self.index_mapping = {i:{i} for i in range(self.num_areas)}
+        self._index_mapping = {i:{i} for i in range(self.num_areas)}
 
         if config.merge_leaves:
-            copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping, merged_obj = _merge_leaf_nodes(copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self.index_mapping, self.threshold)
+            copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self._index_mapping, merged_obj = _merge_leaf_nodes(copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self._index_mapping, self.threshold)
             self._obj_adj += merged_obj
 
         if config.sort_region_roots and config.preassign_roots:
@@ -147,7 +460,7 @@ class MaxPExact():
             copy_spatial_attr = copy_spatial_attr[sort_idx]
             copy_sim_mat = copy_sim_mat[sort_idx,:][:,sort_idx]
             copy_spatial_weights = weights.W.from_sparse(copy_spatial_weights.sparse[sort_idx,:][:,sort_idx])
-            self.index_mapping = {ind:self.index_mapping[i] for ind,i in enumerate(sort_idx)}
+            self._index_mapping = {ind:self._index_mapping[i] for ind,i in enumerate(sort_idx)}
 
         # Define iterative ranges
         self._I_set = range(len(copy_spatial_attr))
@@ -244,6 +557,21 @@ class MaxPExact():
 
     # solve MIP model
     def solve(self, time, abs_gap=1e-7, rel_gap=1e-4):
+        """
+        Solve a constructed MILP for a max-p-region problem formulation
+
+        Parameters
+        ----------
+
+        time : {int, float}, required
+            Length of maximum solve time in seconds
+
+        abs_gap : float
+            Absolute gap at which the MILP is considered solved to optimality
+
+        rel_gap : float
+            Relative gap at which the MILP is considered solved to optimality
+        """
         self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=[f'mip_abs_gap={abs_gap}', f'mip_rel_gap={rel_gap}']))
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
         self.obj = value(self.model.objective) + self._obj_adj 
@@ -251,7 +579,7 @@ class MaxPExact():
 
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:
-            for ind in self.index_mapping[i]:
+            for ind in self._index_mapping[i]:
                 self.regions[ind] = k
         self.regions = _standardize_solution(self.regions)
 
