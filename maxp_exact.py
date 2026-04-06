@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from scipy.spatial.distance import pdist, squareform
 from copy import deepcopy
 
-# This class constructs and solves the max-p-regions problem using exact MILP solvers
-# The algorithms are based on my honors thesis at the Univeristy of Minnesota: Strengthening the Max-P-Regions Problem for the Confidentiality of Census Microdata (2026)
+# This class constructs and solves the max-p-regions problem using an exact MILP solvers
+# The strengthening methods and algorithms are based on my honors thesis at the Univeristy of Minnesota: 
+# Strengthening the Max-P-Regions Problem for the Confidentiality of Census Microdata (2026)
 # Author: Arlan Hegenbarth
 
 def _bound_num_regions(spatial_attr, threshold):
@@ -31,9 +32,14 @@ def _bound_num_regions(spatial_attr, threshold):
         An upper bound on the number of regions in the problem instance
 
     """
+
+    # Find number of areas over the threshold
     over_thres = np.sum(spatial_attr > threshold)
+
+    # Find number of region that can be created from areas under threshold
     under_thres = np.sum(spatial_attr[spatial_attr < threshold])
     under_thres //= threshold
+
     region_bound = over_thres + under_thres
     return region_bound
 
@@ -62,9 +68,14 @@ def _can_split(spatial_attr, threshold, path):
         ``True`` if the path can be split into two parts that meet the minimum region threshold
 
     """
+
     attr_list = spatial_attr[path]
+
+    # Calculate cummulative sum from head and tail
     from_head = np.cumsum(attr_list) >= threshold
     from_tail = np.cumsum(attr_list[::-1])[::-1] >= threshold
+
+    # Determine if any split points are above threshold on both sides
     split_points = from_head[:-1] & from_tail[1:]
     can_split = np.any(split_points)
     return can_split
@@ -101,10 +112,14 @@ def _recursive_step(spatial_weights, spatial_attr, threshold, path, excluded):
         Maximum path length found by recursively adding areas to this path
 
     """
+
+    # Check exit conditions
     if _can_split(spatial_attr, threshold, path):
         return len(path) - 1
-    if not (set(spatial_weights.neighbors[path[0]]) - excluded):
+    if not (set(spatial_weights.neighbors[path[0]]) - excluded): # Dead-end
         return len(path)
+    
+    # Iterate though head's neighbors and expand the path
     max_q = 0
     for next_ind in spatial_weights.neighbors[path[0]]:
         if next_ind not in excluded:
@@ -138,6 +153,7 @@ def _bound_contiguity(spatial_weights, spatial_attr, threshold):
         Maximum path length found by recursively adding areas in a depth first search
     """
     max_q = 0
+    # Iterate through each area as an initial head for a path
     for i in range(len(spatial_attr)):
         depth = _recursive_step(spatial_weights, spatial_attr, threshold, [i], set())
         if depth > max_q:
@@ -168,7 +184,7 @@ def _standardize_solution(solution):
         if item not in id_map: # new region ID
             id_map[item] = counter
             counter += 1
-    std_solution = np.array([id_map[s] for s in solution])
+    std_solution = np.array([id_map[s] for s in solution]) # Assign standardized region numbers
     return std_solution
 
 
@@ -196,17 +212,25 @@ def _find_excluded_roots(spatial_weights, spatial_attr, threshold):
         A set of indices representing areas that can be excluded from being roots
     """
     excluded = set()
+
+    # Iterate in ascending order of spatially extensive attribute
     for i in sorted(range(len(spatial_attr)), key=lambda i: spatial_attr[i]):
         if spatial_attr[i] >= threshold:
             break
+
         contig_excl = {i}
+
+        # Determine attribute size of contiguous excluded area created
         while True:
             size = len(contig_excl)
             contig_excl |= {neigh for ex in contig_excl for neigh in spatial_weights.neighbors[ex] if neigh in excluded}
             if len(contig_excl) == size:
                 break
+
+        # Add area only if contiguous excluded area does not exceed the threshold
         if sum(spatial_attr[ex] for ex in contig_excl) < threshold:
             excluded.add(i)
+
     return excluded
 
 
@@ -256,21 +280,34 @@ def _merge_leaf_nodes(spatial_weights, spatial_attr, sim_mat, index_mapping, thr
     """
     adjustment = 0
     while True:
+        # Determine merge candidates, and exit if none
         merge_candidates = [ind for ind,i in enumerate(spatial_attr) if i < threshold and len(spatial_weights.neighbors[ind]) == 1]
         if not merge_candidates:
             return spatial_weights, spatial_attr, sim_mat, index_mapping, adjustment
+        
+        # Identify a merge candidate and its neighbor
         to_merge = merge_candidates[0]
         merge_neigh = spatial_weights.neighbors[to_merge][0]
-        adjustment += sim_mat[to_merge, merge_neigh]
+        adjustment += sim_mat[to_merge, merge_neigh] # Adjustment to objective value
+
+        # Create mask to remove merged area
         mask = np.ones(spatial_weights.sparse.shape[0], dtype=bool)
         mask[to_merge] = False
+
+        # Update spatial weights object
         spatial_weights = weights.W.from_sparse(spatial_weights.sparse[mask, :][:, mask])
+
+        # Update spatial attribute array
         spatial_attr[merge_neigh] += spatial_attr[to_merge]
         spatial_attr = spatial_attr[mask]
+
+        # Update similarity matrix
         sim_mat[merge_neigh, :] += sim_mat[to_merge, :]
         sim_mat[:, merge_neigh] += sim_mat[:, to_merge]
         sim_mat = sim_mat[mask, :][:, mask]
         sim_mat[merge_neigh, merge_neigh] = 0
+
+        # Update index mapping
         index_mapping[merge_neigh] |= index_mapping[to_merge]
         index_mapping = {(k-1 if k > to_merge else k):v for k,v in index_mapping.items()}
 
@@ -394,7 +431,7 @@ class MaxPExact():
         self._obj_adj = 0
         self.status = "Unconstructed"
 
-        if self.dissimilarity:
+        if self.dissimilarity: # Use negative values, but adjust the objective result
             self._obj_adj += np.sum(np.triu(self.sim_mat, k=1))
             self.sim_mat *= -1
 
@@ -451,10 +488,12 @@ class MaxPExact():
 
         self._index_mapping = {i:{i} for i in range(self.num_areas)}
 
+        # Merge leaf nodes
         if config.merge_leaves:
             copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self._index_mapping, merged_obj = _merge_leaf_nodes(copy_spatial_weights, copy_spatial_attr, copy_sim_mat, self._index_mapping, self.threshold)
             self._obj_adj += merged_obj
 
+        # If both sort region roots and preassign roots are used, all data structures must be sorted
         if config.sort_region_roots and config.preassign_roots:
             sort_idx = np.argsort(copy_spatial_attr)[::-1]
             copy_spatial_attr = copy_spatial_attr[sort_idx]
@@ -503,56 +542,60 @@ class MaxPExact():
             for c in self._C_set if c > 0
         ])
         if self.dissimilarity:
-            self.model.extend([ # x-t Matching Constraints
+            self.model.extend([ # x-t Matching Constraints for dissimilarity
                 self.t[i,j] >= lpSum(self.x[i][k][c] + self.x[j][k][c] for c in self._C_set) - 1
                 for i in self._I_set 
                 for j in self._I_set if j > i 
                 for k in self._K_set
             ])
         else:
-            self.model.extend([ # x-t Matching Constraints
+            self.model.extend([ # x-t Matching Constraints for similarity
                 self.t[i,j] <= lpSum(self.x[i][k][c] - self.x[j][k][c] for c in self._C_set) + 1
                 for i in self._I_set 
                 for j in self._I_set if j > i 
                 for k in self._K_set
             ])
+
+        # Define constraints for strengthened formulations
         excluded_roots = set()
-        if config.exclude_roots: # Exclude Roots
+        if config.exclude_roots: # Exclude Roots Constraints
             excluded_roots = _find_excluded_roots(copy_spatial_weights, copy_spatial_attr, self.threshold)
             self.model.extend([
                 lpSum(self.x[i][k][0] for k in self._K_set) == 0
                 for i in excluded_roots
             ])
-        if config.preassign_roots: # Preassign Roots
-            if max(copy_spatial_attr) < self.threshold:
+        if config.preassign_roots: # Preassign Roots Constraints
+            if max(copy_spatial_attr) < self.threshold: # No areas above regional attribute threshold
                 temp_attr = np.array(copy_spatial_attr, copy=True)
                 temp_attr[list(excluded_roots)] = -1
                 self.model += self.x[np.argmax(temp_attr)][0][0] == 1
-            else:
+            else: # Some areas above regional attribute threshold
                 over_thresh = [i for i in self._I_set if copy_spatial_attr[i] >= self.threshold]
                 self.model.extend([
                     self.x[i][ind][0] == 1
                     for ind,i in enumerate(over_thresh)
                 ])
         if config.max_attr_for_root:
-            self.model.extend([
+            self.model.extend([ # Ensure Root is Maximum Attribute Constraints
                 lpSum(copy_spatial_attr[j] * self.x[j][k][0] for j in self._I_set) >= copy_spatial_attr[i] * self.x[i][k][c]
                 for c in self._C_set if c > 0
                 for i in self._I_set if i not in excluded_roots
                 for k in self._K_set
             ])
         if config.min_adj_order:
-            self.model.extend([
+            self.model.extend([ # Ensure Minimum Possible Adjacency Order Contraints
                 len(copy_spatial_attr) * (1 - self.x[i][k][c]) >= lpSum(self.x[j][k][d] for j in copy_spatial_weights.neighbors[i] for d in range(0,c-1))
                 for c in self._C_set if c > 1
                 for i in self._I_set
                 for k in self._K_set
             ])
         if config.sort_region_roots:
-            self.model.extend([
+            self.model.extend([ # Sort Regions by Root Size Constraints
                 lpSum(copy_spatial_attr[i] * self.x[i][k-1][0] for i in self._I_set) >= lpSum(copy_spatial_attr[i] * self.x[i][k][0] for i in self._I_set)
                 for k in self._K_set if k > 0
             ])
+
+        # Save status as no solution
         self.status = LpSolution[0]
 
     # solve MIP model
@@ -573,10 +616,13 @@ class MaxPExact():
             Relative gap at which the MILP is considered solved to optimality
         """
         self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=[f'mip_abs_gap={abs_gap}', f'mip_rel_gap={rel_gap}']))
+
+        # Derive Result
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
         self.obj = value(self.model.objective) + self._obj_adj 
         self.status = LpSolution[self.model.sol_status]
 
+        # Extract and Standardize Solution
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
         for i,k in assigned:
             for ind in self._index_mapping[i]:
