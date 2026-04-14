@@ -26,25 +26,25 @@
 - [x] Use similarity or disimilarity - **MVP**
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
-- [ ] Gracefully handle memory issues
+- [ ] Gracefully handle memory issues - **Final Project**
 - [ ] Handle default and trivial solutions
 - [ ] Weight similarity to always be right of decimal
-- [ ] Index sorts rather than attribute sorts
+- [ ] Index sorts rather than attribute sorts - **Final Project**
 
 ### User Inputs
 - [x] Input gap tolerance - **MVP**
 - [x] Ability to input geopandas - **MVP**
 - [x] Ability to write to geopandas column - **MVP**
-- [ ] Use integer or float as threshold attribute
-- [ ] Error checking in the init function
+- [ ] Use integer or float as threshold attribute - **Final Project**
+- [ ] Error checking in the init function - **Final Project**
 - [x] Automatically calculate dissimilarity from attribute
 - [ ] Automatically calculate border lengths
 - [x] Specifiy type of contiguity
 - [ ] Store Unique IDs
 
 ### Accessing the Solution
-- [ ] Seperately store optimal and best known solution
-- [ ] Seperately store optimal and best known objective value
+- [ ] Seperately store optimal and best known solution - **Final Project**
+- [ ] Seperately store optimal and best known objective value - **Final Project**
 - [x] Store problem status - **MVP**
 - [ ] Access to MPS file
 
@@ -60,7 +60,7 @@
 - [ ] Replace pulp with pyomo
 - [ ] Allow selection between multiple solvers
 - [ ] Allow any solver path including commercial
-- [ ] Allow disjoint solving where progress is saved
+- [ ] Allow disjoint solving where progress is saved - **Final Project**
 
 ### Extra Reformulations not from Thesis
 - [ ] Both types of sorting regions
