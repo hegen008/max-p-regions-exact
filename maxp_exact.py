@@ -5,6 +5,7 @@ from libpysal import weights
 from dataclasses import dataclass
 from scipy.spatial.distance import pdist, squareform
 from copy import deepcopy
+import geopandas as gpd
 
 # This class constructs and solves the max-p-regions problem using an exact MILP solvers
 # The strengthening methods and algorithms are based on my honors thesis at the Univeristy of Minnesota: 
@@ -414,6 +415,37 @@ class MaxPExact():
         """
         Initializes a max-p-regions problem from numpy arrays
         """
+        try:
+            # Check input data
+            if not isinstance(adj_mat, np.ndarray):
+                raise TypeError("Adjacency matrix must be a numpy array")
+            if not np.array_equal(adj_mat, adj_mat.T):
+                raise ValueError("Adjacency matrix is not symmetric")
+            if not np.all((adj_mat == 0) | (adj_mat == 1)):
+                raise ValueError("Adjacency matrix is not binary")
+            if not isinstance(sim_mat, np.ndarray):
+                raise TypeError("Similarity matrix must be a numpy array")
+            if not np.array_equal(sim_mat, sim_mat.T):
+                raise ValueError("Similarity matrix is not symmetric")
+            if np.min(sim_mat) < 0:
+                raise ValueError("Similarity matrix must be non-negative")
+            if not isinstance(spatial_attr, np.ndarray):
+                raise TypeError("Spatial attribute values must be a numpy array")
+            if np.min(spatial_attr) < 0:
+                raise ValueError("Spatial attribute values must be non-negative")
+            if not isinstance(threshold, (int, float, np.number)):
+                raise TypeError("Threshold must be a integer or float")
+            if not isinstance(dissimilarity, bool):
+                raise TypeError("Dissimilarity flag must be a boolean")
+            if threshold < 0:
+                raise ValueError("Threshold must be non-negative")
+            if adj_mat.shape[0] != sim_mat.shape[0]:
+                raise ValueError("Adjacency matrix and similarity matrix must be the same size")
+            if adj_mat.shape[0] != len(spatial_attr):
+                raise ValueError("Length of spatial attribute value must match spatial adjacency matrix")
+        except (ValueError, TypeError):
+            raise
+
         # Initialize data
         self.adj_mat = deepcopy(adj_mat)
         self.sim_mat = deepcopy(sim_mat)
@@ -438,7 +470,7 @@ class MaxPExact():
 
     # geopandas initialization
     @classmethod
-    def from_gdf(cls, gdf, weights, dissim_attr, threshold_attr, threshold):
+    def from_gdf(cls, gdf, sp_weights, dissim_attr, threshold_attr, threshold):
         """
         Initializes a max-p-regions problem from a geopandas dataframe
 
@@ -448,7 +480,7 @@ class MaxPExact():
         gdf : geopandas.GeoDataFrame, required
             Geodataframe containing the original input areas
 
-        weights : libpysal.weights.W, required
+        sp_weights : libpysal.weights.W, required
             Weights object created from the given geodataframe
 
         dissim_attr : list, required
@@ -461,12 +493,21 @@ class MaxPExact():
         threshold : {int, float}, required
             minimum spatially extensive attribute for each region
         """
+
+        # Check input data
+        if not isinstance(gdf, gpd.GeoDataFrame):
+            raise TypeError("gdf must be a geopandas dataframe")
+        if not isinstance(sp_weights, weights.W):
+            raise TypeError("sp_weights must be a libpysal.weights.W object")
+        if len(gdf) != sp_weights.n:
+            raise ValueError("Geodataframe and spatial weights must have same number of indices")
+
         attr = np.atleast_2d(gdf[dissim_attr].values)
         if attr.shape[0] == 1:
             attr = attr.T
         dist_matrix = squareform(pdist(attr, metric="cityblock"))
         threshold_array = gdf[threshold_attr].values
-        instance = cls(weights.full()[0], dist_matrix, threshold_array, threshold, dissimilarity=True)
+        instance = cls(sp_weights.full()[0], dist_matrix, threshold_array, threshold, dissimilarity=True)
         return instance
 
 

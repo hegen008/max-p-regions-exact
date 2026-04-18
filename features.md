@@ -26,7 +26,7 @@
 - [x] Use similarity or disimilarity - **MVP**
 - [ ] Non-adjacent zero similarity tracking
 - [ ] Connect non-adjacent parts
-- [ ] Gracefully handle memory issues - **Final Project**
+- [ ] Gracefully handle memory issues
 - [ ] Handle default and trivial solutions
 - [ ] Weight similarity to always be right of decimal
 - [ ] Index sorts rather than attribute sorts - **Final Project**
@@ -35,8 +35,8 @@
 - [x] Input gap tolerance - **MVP**
 - [x] Ability to input geopandas - **MVP**
 - [x] Ability to write to geopandas column - **MVP**
-- [ ] Use integer or float as threshold attribute - **Final Project**
-- [ ] Error checking in the init function - **Final Project**
+- [x] Use integer or float as threshold attribute - **Final Project**
+- [x] Error checking in the init function - **Final Project**
 - [x] Automatically calculate dissimilarity from attribute
 - [ ] Automatically calculate border lengths
 - [x] Specifiy type of contiguity
@@ -60,7 +60,7 @@
 - [ ] Replace pulp with pyomo
 - [ ] Allow selection between multiple solvers
 - [ ] Allow any solver path including commercial
-- [ ] Allow disjoint solving where progress is saved - **Final Project**
+- [ ] Allow disjoint solving where progress is saved
 
 ### Extra Reformulations not from Thesis
 - [ ] Both types of sorting regions
