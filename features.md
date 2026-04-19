@@ -43,8 +43,7 @@
 - [ ] Store Unique IDs
 
 ### Accessing the Solution
-- [ ] Seperately store optimal and best known solution - **Final Project**
-- [ ] Seperately store optimal and best known objective value - **Final Project**
+- [x] Flag for optimal status - **Final Project**
 - [x] Store problem status - **MVP**
 - [ ] Access to MPS file
 

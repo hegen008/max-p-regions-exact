@@ -409,6 +409,9 @@ class MaxPExact():
     status : string
         The current solve status of the problem
 
+    optimal : bool
+        Optimal solution status, for quick access
+
     """
     # array initialization
     def __init__(self, adj_mat, sim_mat, spatial_attr, threshold, dissimilarity=False):
@@ -459,6 +462,7 @@ class MaxPExact():
         self.regions = np.full(self.num_areas, None, dtype=object)
         self.maxp = None
         self.obj = None
+        self.optimal = False
         self.weight_factor = 10**(1 + np.floor(np.log10(np.sum(np.triu(self.sim_mat, k=1)))))
         self._obj_adj = 0
         self.status = "Unconstructed"
@@ -662,6 +666,8 @@ class MaxPExact():
         self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
         self.obj = value(self.model.objective) + self._obj_adj 
         self.status = LpSolution[self.model.sol_status]
+        if self.status == "Optimal Solution Found":
+            self.optimal = True
 
         # Extract and Standardize Solution
         assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
