@@ -12,10 +12,10 @@ $k, K = \text{ index and set of potential regions, } K = \{1,\dots,m\} \text{, w
 
 $c, C = \text{ index and set of contiguity orders, } C = \{0,\dots,q\} \text{, with } q = n-1 \text{ by default }$
 
-$$w_{ij} = \begin{cases} 
+$w_{ij} = \begin{cases} 
 1, & \text{if areas } i \text{ and } j \text{ are adjacent, with } i, j \in I \text{ and } i \neq j \\ 
 0, & \text{otherwise} 
-\end{cases}$$
+\end{cases}$
 
 $N_i = \{j|w_{ij}=1\} \text{, the set of areas that are adjacent to area } i \text{, this is an alternate representation of } w$
 
@@ -29,15 +29,15 @@ $\tau  = \text{ threshold, minimum value for attribute } l \text{ at regional sc
 
 ### Decision Variables
 
-$$t_{ij}  = \begin{cases}
+$t_{ij}  = \begin{cases}
 1, & \text{ if areas } i \text{ and } j \text{ belong to the same region, with } j > i \\
 0, & \text{otherwise}
-\end{cases}$$
+\end{cases}$
 
-$$x_i^{kc} = \begin{cases}
+$x_i^{kc} = \begin{cases}
 1, & \text{ if area } i \text{ is assigned to region } k \text{ in contiguity order } c \\
 0, & \text{otherwise}
-\end{cases}$$
+\end{cases}$
 
 ### Objective Function
 
