@@ -30,12 +30,12 @@ $\tau  = \text{ threshold, minimum value for attribute } l \text{ at regional sc
 ### Decision Variables
 
 $$t_{ij}  = \begin{cases}
-1, & \text{ if areas } i \text{ and } j \text{ belong to the same region, with } j > i
+1, & \text{ if areas } i \text{ and } j \text{ belong to the same region, with } j > i \\
 0, & \text{otherwise}
 \end{cases}$$
 
 $$x_i^{kc} = \begin{cases}
-1, & \text{ if area } i \text{ is assigned to region } k \text{ in contiguity order } c
+1, & \text{ if area } i \text{ is assigned to region } k \text{ in contiguity order } c \\
 0, & \text{otherwise}
 \end{cases}$$
 
