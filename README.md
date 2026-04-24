@@ -2,7 +2,7 @@
 
 The max-p-regions problem clusters "a set of geographic areas into the maximum number of homogeneous regions such that the value of a spatially extensive regional attribute is above a predefined threshold value" (Duque 2012). This repository implements an exact solver for the max-p-regions problem and strengthens to formulation for larger problem instances to be solved using exact methods.
 
-## Problem Formulation
+## Similarity Problem Formulation
 
 ### Parameters
 
@@ -47,16 +47,73 @@ $$Z = \sum_{k \in K}\sum_{i \in I}x_i^{k0} \cdot 10^h + \sum_{i \in I}\sum_{j \i
 
 ### Constraints
 
+Regions cannot have multiple roots
+
 $$\sum_{i \in I}x_i^{k0} \leq 1 \quad \forall k \in K$$
+
+Each are is assigned to exactly one region
 
 $$\sum_{k \in K}\sum_{c \in C}x_i^{kc} = 1 \quad \forall i \in I$$
 
+Contiguity constraints
+
 $$x_i^{kc}\leq\sum_{j\in N_i}x_j^{k(c-1)} \quad \forall i \in I,k \in K, c \in C \mid c  > 0$$
+
+Regions meet minimum attribute threshold
 
 $$\sum_{i \in I}\sum_{c \in C}x_i^{kc}l_i \geq \tau \cdot \sum_{i \in I}x_i^{k0} \quad \forall k\in K$$
 
+Ensure alignment of $x$ and $t$
+
 $$t_{ij} \leq \sum_{c \in C}x_i^{kc} - \sum_{c \in C}x_j^{kc} + 1  \quad \forall i \in I, j \in I, k \in K \mid j > i$$
+
+Binary constraints for $x$ and $t$
 
 $$x_i^{kc} \in \{0,1\} \quad \forall i \in I, k \in K, c \in C$$
 
 $$t_{ij} \in \{0,1\} \quad \forall i \in I, j \in I \mid j > i$$
+
+
+## Dissimilarity Problem Formulation
+If there max-p-regions problem is being formulated to minimize within region similarity, the following change are made
+
+### Parameters
+$$d_{ij} = \text{ similarity relationship between areas } i \text{ and } j \text{, with } i, j \in I \text{ and } i<j$$
+
+### Objective Function
+
+Maximize
+
+$$Z = \sum_{k \in K}\sum_{i \in I}x_i^{k0} \cdot 10^h - \sum_{i \in I}\sum_{j \in I \mid j>i}d_{ij}t_{ij}$$
+
+### Constraints
+
+Ensure alignment of $x$ and $t$
+
+$$t_{ij} \geq \sum_{c \in C}x_i^{kc} + \sum_{c \in C}x_j^{kc} - 1  \quad \forall i \in I, j \in I, k \in K \mid j > i$$
+
+## Strengthening Methods
+
+### Bound Number of Regions
+Controlled by the parameter `bound_num_regions`
+
+### Bound Maximum Contiguity Order
+Controlled by the parameter `bound_contiguity`
+
+### Merge Leaf Nodes
+Controlled by the parameter `merge_leaves`
+
+### Preassign Root Areas
+Controlled by the parameter `preassign_roots`
+
+### Exclude Areas as Roots
+Controlled by the parameter `exclude_roots`
+
+### Max Attribute for Root Area
+Controlled by the parameter `max_attr_for_root`
+
+### Minimize Adjacency Order
+Controlled by the parameter `min_adj_order`
+
+### Sort Region Roots
+Controlled by the parameter `sort_region_roots`
