@@ -109,8 +109,8 @@ Controlled by the parameter `preassign_roots`
 ### Exclude Areas as Roots
 Controlled by the parameter `exclude_roots`
 
-### Max Attribute for Root Area
-Controlled by the parameter `max_attr_for_root`
+### Minmize Index for Root Area
+Controlled by the parameter `min_index_for_root`
 
 ### Minimize Adjacency Order
 Controlled by the parameter `min_adj_order`

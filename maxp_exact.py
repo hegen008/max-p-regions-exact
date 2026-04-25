@@ -336,14 +336,14 @@ class MaxPConfig:
     exclude_roots : boolean
         Some input areas will excluded from being roots of a region
     
-    max_attr_for_root : boolean
-        The input area with the largest spatially extensive attribute must be the region root
+    min_index_for_root : boolean
+        The input area with the lowest index must be the region root
 
     min_adj_order : boolean
         The smallest possible adjacency order for each area must be used
 
     sort_region_roots : boolean
-        The regions must be sorted by decreasing value of the spatially extensive attributes for the roots
+        The regions must be sorted by ascending index of the roots
 
     """
     bound_num_regions: bool = False
@@ -351,7 +351,7 @@ class MaxPConfig:
     merge_leaves: bool = False
     preassign_roots: bool = False
     exclude_roots: bool = False
-    max_attr_for_root: bool = False
+    min_index_for_root: bool = False
     min_adj_order: bool = False
     sort_region_roots: bool = False
 
@@ -615,14 +615,13 @@ class MaxPExact():
                 temp_attr[list(excluded_roots)] = -1
                 self.model += self.x[np.argmax(temp_attr)][0][0] == 1
             else: # Some areas above regional attribute threshold
-                over_thresh = [i for i in self._I_set if copy_spatial_attr[i] >= self.threshold]
                 self.model.extend([
                     self.x[i][ind][0] == 1
-                    for ind,i in enumerate(over_thresh)
+                    for i,ind in enumerate(self._I_set) if copy_spatial_attr[i] >= self.threshold
                 ])
-        if config.max_attr_for_root:
-            self.model.extend([ # Ensure Root is Maximum Attribute Constraints
-                lpSum(copy_spatial_attr[j] * self.x[j][k][0] for j in self._I_set) >= copy_spatial_attr[i] * self.x[i][k][c]
+        if config.min_index_for_root:
+            self.model.extend([ # Ensure Root is Minimum Index Constraints
+                lpSum(j * self.x[j][k][0] for j in self._I_set) <= i * self.x[i][k][c]
                 for c in self._C_set if c > 0
                 for i in self._I_set if i not in excluded_roots
                 for k in self._K_set
@@ -635,8 +634,8 @@ class MaxPExact():
                 for k in self._K_set
             ])
         if config.sort_region_roots:
-            self.model.extend([ # Sort Regions by Root Size Constraints
-                lpSum(copy_spatial_attr[i] * self.x[i][k-1][0] for i in self._I_set) >= lpSum(copy_spatial_attr[i] * self.x[i][k][0] for i in self._I_set)
+            self.model.extend([ # Sort Regions by Root Index Constraints
+                lpSum(i * self.x[i][k-1][0] for i in self._I_set) <= lpSum(i * self.x[i][k][0] for i in self._I_set)
                 for k in self._K_set if k > 0
             ])
 

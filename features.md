@@ -29,7 +29,7 @@
 - [ ] Gracefully handle memory issues
 - [ ] Handle default and trivial solutions
 - [ ] Weight similarity to always be right of decimal
-- [ ] Index sorts rather than attribute sorts - **Final Project**
+- [x] Index sorts rather than attribute sorts - **Final Project**
 
 ### User Inputs
 - [x] Input gap tolerance - **MVP**
