@@ -35,14 +35,14 @@ def _bound_num_regions(spatial_attr, threshold):
     """
 
     # Find number of areas over the threshold
-    over_thres = np.sum(spatial_attr > threshold)
+    over_thres = np.sum(spatial_attr >= threshold)
 
     # Find number of region that can be created from areas under threshold
     under_thres = np.sum(spatial_attr[spatial_attr < threshold])
     under_thres //= threshold
 
     region_bound = over_thres + under_thres
-    return region_bound
+    return int(region_bound)
 
 
 def _can_split(spatial_attr, threshold, path):
@@ -440,8 +440,8 @@ class MaxPExact():
                 raise TypeError("Threshold must be a integer or float")
             if not isinstance(dissimilarity, bool):
                 raise TypeError("Dissimilarity flag must be a boolean")
-            if threshold < 0:
-                raise ValueError("Threshold must be non-negative")
+            if threshold <= 0:
+                raise ValueError("Threshold must be positive")
             if adj_mat.shape[0] != sim_mat.shape[0]:
                 raise ValueError("Adjacency matrix and similarity matrix must be the same size")
             if adj_mat.shape[0] != len(spatial_attr):
@@ -621,7 +621,7 @@ class MaxPExact():
                 ])
         if config.min_index_for_root:
             self.model.extend([ # Ensure Root is Minimum Index Constraints
-                lpSum(j * self.x[j][k][0] for j in self._I_set) <= i * self.x[i][k][c]
+                lpSum((len(copy_spatial_attr) - j) * self.x[j][k][0] for j in self._I_set) >= (len(copy_spatial_attr) - i) * self.x[i][k][c]
                 for c in self._C_set if c > 0
                 for i in self._I_set if i not in excluded_roots
                 for k in self._K_set
@@ -635,7 +635,7 @@ class MaxPExact():
             ])
         if config.sort_region_roots:
             self.model.extend([ # Sort Regions by Root Index Constraints
-                lpSum(i * self.x[i][k-1][0] for i in self._I_set) <= lpSum(i * self.x[i][k][0] for i in self._I_set)
+                lpSum((len(copy_spatial_attr) - i) * self.x[i][k-1][0] for i in self._I_set) >= lpSum((len(copy_spatial_attr) - i) * self.x[i][k][0] for i in self._I_set)
                 for k in self._K_set if k > 0
             ])
 
