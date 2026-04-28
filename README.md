@@ -97,11 +97,21 @@ $$t_{ij} \geq \sum_{c \in C}x_i^{kc} + \sum_{c \in C}x_j^{kc} - 1  \quad \forall
 ### Bound Number of Regions
 Controlled by the parameter `bound_num_regions`
 
+This method provides an tighter upper bound for the number of regions $m$, with the equation below. Finding a smaller value of $m$ reduce the dimensionality of the optimization problem.
+
+$$m = \sum_{i \in I} (\mathbb{𝟙}\{l_i \geq \tau\}) + \left\lfloor \frac{\sum_{i \in I} (l_i \cdot \mathbb{𝟙}\{l_i < \tau\})}{\tau} \right\rfloor$$
+
+In this equation, $\mathbb{𝟙}\{A\}$ represents an indicator function, where the value is 1 if condition $A$ is met, otherwise the value is 0. The first term of this equation is the total number of areas in the problem that meet the threshold constraint on their own. The second term is the maximum number of regions that could be formed out of the total remaining areas that are under the threshold.
+
 ### Bound Maximum Contiguity Order
 Controlled by the parameter `bound_contiguity`
 
+This method finds a tighter bound for the maximium contiguity order $q$, again reducing the dimensionality of the optimization problem. The bound can be determined by finding the longest acyclic path of input areas that cannot be split into multiple regions. In this implementation, this is accomplished through and exhaustive breadth-first search of the adjacency graph. In very large problem instances, this is not computationally feasible. While these cases are also likely too large to solve using exact methods, an alternate aspatial bound is possible. At this time, an aspatial bound is left for future improvement.
+
 ### Merge Leaf Nodes
 Controlled by the parameter `merge_leaves`
+
+The methods performs a preprocessing step where some input areas are merged together before model construction. For ayd input area $i$ such that $l_i < \tau$ and $|N_i| = 1$, the input area can be merged with its only neighbor. In all feasible problem solutions these two areas must be assigned to the same region
 
 ### Preassign Root Areas
 Controlled by the parameter `preassign_roots`
