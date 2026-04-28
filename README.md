@@ -75,10 +75,10 @@ $$t_{ij} \in \{0,1\} \quad \forall i \in I, j \in I \mid j > i$$
 
 
 ## Dissimilarity Problem Formulation
-If there max-p-regions problem is being formulated to minimize within region similarity, the following change are made
+If the max-p-regions problem is being formulated to minimize within-region dissimilarity, the following changes are made
 
 ### Parameters
-$$d_{ij} = \text{ similarity relationship between areas } i \text{ and } j \text{, with } i, j \in I \text{ and } i<j$$
+$$d_{ij} = \text{ dissimilarity relationship between areas } i \text{ and } j \text{, with } i, j \in I \text{ and } i<j$$
 
 ### Objective Function
 
