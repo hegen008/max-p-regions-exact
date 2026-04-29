@@ -111,19 +111,25 @@ This method finds a tighter bound for the maximium contiguity order $q$, again r
 ### Merge Leaf Nodes
 Controlled by the parameter `merge_leaves`
 
-The methods performs a preprocessing step where some input areas are merged together before model construction. For ayd input area $i$ such that $l_i < \tau$ and $|N_i| = 1$, the input area can be merged with its only neighbor. In all feasible problem solutions these two areas must be assigned to the same region
+This method performs a preprocessing step where some input areas are merged together before model construction. For ayd input area $i$ such that $l_i < \tau$ and $|N_i| = 1$, the input area can be merged with its only neighbor. In all feasible problem solutions these two areas must be assigned to the same region
 
 ### Preassign Root Areas
 Controlled by the parameter `preassign_roots`
 
+A region in the optimal solution will never contain muliple areas that have a spatially extensive attribute the meets the region threshold. This means thateach input area $i$ that meets the threshold can be assigned as a root of their own region $k$ with the constraint $x_i^{k0} = 1$. In the case where no areas meet the threshold, one arbitrary area can be assigned as a region root. In this implementation, the area with the largest spatially extensive attribute will be preassigned.
+
 ### Exclude Areas as Roots
 Controlled by the parameter `exclude_roots`
 
-### Minmize Index for Root Area
+Similarity to preassigning roots, some areas can be excluded from being roots. We know that for any contiguous set of input areas with a total spatially extensive attribute below the threshold, a version of the optimal solution exists where none of these areas are the root of any region. Multiple contiguuous sets of these input areas can exist in the same problem. In this implementation, the set of excluded roots $X$ is identified through a greedy approach. To exclude set $X$ from being region roots, the following constraints can be added.
+
+$$\sum_{k \in K}x_i^{k0} = 0 \quad \forall i \in X$$
+
+### Minimize Index for Root Area
 Controlled by the parameter `min_index_for_root`
 
-### Minimize Adjacency Order
-Controlled by the parameter `min_adj_order`
+### Minimize Contiguity Order
+Controlled by the parameter `min_cont_order`
 
 ### Sort Region Roots
 Controlled by the parameter `sort_region_roots`
