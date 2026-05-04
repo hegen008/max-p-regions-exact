@@ -336,8 +336,8 @@ class MaxPConfig:
     exclude_roots : boolean
         Some input areas will excluded from being roots of a region
     
-    min_index_for_root : boolean
-        The input area with the lowest index must be the region root
+    max_root : boolean
+        The input area with the smallest index will be the root of each region
 
     min_cont_order : boolean
         The smallest possible adjacency order for each area must be used
@@ -351,7 +351,7 @@ class MaxPConfig:
     merge_leaves: bool = False
     preassign_roots: bool = False
     exclude_roots: bool = False
-    min_index_for_root: bool = False
+    max_root: bool = False
     min_cont_order: bool = False
     sort_region_roots: bool = False
 
@@ -620,9 +620,10 @@ class MaxPExact():
                     self.x[i][ind][0] == 1
                     for ind,i in enumerate(roots)
                 ])
-        if config.min_index_for_root:
+        sort_list = np.arange(len(copy_spatial_attr), 0, -1)
+        if config.max_root:
             self.model.extend([ # Ensure Root is Minimum Index Constraints
-                lpSum((len(copy_spatial_attr) - j) * self.x[j][k][0] for j in self._I_set) >= (len(copy_spatial_attr) - i) * self.x[i][k][c]
+                lpSum(sort_list[j] * self.x[j][k][0] for j in self._I_set) >= sort_list[i] * self.x[i][k][c]
                 for c in self._C_set if c > 0
                 for i in self._I_set if i not in excluded_roots
                 for k in self._K_set
@@ -636,7 +637,7 @@ class MaxPExact():
             ])
         if config.sort_region_roots:
             self.model.extend([ # Sort Regions by Root Index Constraints
-                lpSum((len(copy_spatial_attr) - i) * self.x[i][k-1][0] for i in self._I_set) >= lpSum((len(copy_spatial_attr) - i) * self.x[i][k][0] for i in self._I_set)
+                lpSum(sort_list[i] * self.x[i][k-1][0] for i in self._I_set) >= lpSum(sort_list[i] * self.x[i][k][0] for i in self._I_set)
                 for k in self._K_set if k > 0
             ])
 

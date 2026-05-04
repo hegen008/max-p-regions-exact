@@ -125,11 +125,26 @@ Similarity to preassigning roots, some areas can be excluded from being roots. W
 
 $$\sum_{k \in K}x_i^{k0} = 0 \quad \forall i \in X$$
 
-### Minimize Index for Root Area
-Controlled by the parameter `min_index_for_root`
+### Maximize Root Area
+Controlled by the parameter `max_root`
+
+We can break the symmetry by requiring a specific area is the root of each node, this will be the largest value of $\hat{l}_i$. In my thesis $\hat{l}_i = l_i$, but for this implementation $\hat{l}_i = n - i$. This change makes the strategy more applicable when there are a large number of tied values in $l$. The following constraints are used to break this symmetry
+
+$$\sum_{j \in I}\hat{l}_j x_j^{k0} \geq \hat{l}_i x_i^{kc} \quad \forall i \in I, k \in K, c \in C \mid c > 0$$
+
+If root exclusion is also being used, constraints should only be added for $i \notin X$.
 
 ### Minimize Contiguity Order
 Controlled by the parameter `min_cont_order`
 
+We can break the symmetry of the order assignment by preventing any area from being assigned to a contiguity order that is more than 1 larger than the contiguity order of any area that is adjacent to it and in the same region. This will force the contiguity orders to be assigned using the lowest possible indices from a given root. This symmetry can be broken by adding the following constraints.
+
+$$n(1 - x_i^{kc}) \geq \sum_{j \in N_i}\sum_{d=0}^{c-2} x_j^{kd} \quad \forall i \in I, k \in K, c \in C \mid c > 1$$
+
 ### Sort Region Roots
 Controlled by the parameter `sort_region_roots`
+
+The symmetry can further be reduced by sorting the regions by descending values of $\hat{l}_i$. Like maximize root area,  $\hat{l}_i = l_i$ in my thesis, but  $\hat{l}_i = n - i$ here. The regions order symmetry can be broken by adding the following constraints.
+
+
+$$\sum_{i \in I}\sum_{c \in C} \hat{l}_ix_i^{(k-1)c} \geq \sum_{i \in I}\sum_{c \in C} \hat{l}_ix_i^{kc} \quad \forall k \in K \mid k > 1$$
