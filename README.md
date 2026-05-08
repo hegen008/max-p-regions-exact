@@ -51,7 +51,7 @@ Regions cannot have multiple roots
 
 $$\sum_{i \in I}x_i^{k0} \leq 1 \quad \forall k \in K$$
 
-Each are is assigned to exactly one region
+Each area is assigned to exactly one region
 
 $$\sum_{k \in K}\sum_{c \in C}x_i^{kc} = 1 \quad \forall i \in I$$
 
