@@ -1,6 +1,6 @@
 # Max-P-Regions Problem
 
-The max-p-regions problem clusters "a set of geographic areas into the maximum number of homogeneous regions such that the value of a spatially extensive regional attribute is above a predefined threshold value" (Duque 2012). This repository implements an exact solver for the max-p-regions problem and strengthens to formulation for larger problem instances to be solved using exact methods.
+The max-p-regions problem clusters "a set of geographic areas into the maximum number of homogeneous regions such that the value of a spatially extensive regional attribute is above a predefined threshold value" (Duque 2012). This repository implements an exact solver for the max-p-regions problem and strengthens the formulation for larger problem instances to be solved using exact methods.
 
 ## Similarity Problem Formulation
 
@@ -75,7 +75,7 @@ $$t_{ij} \in \{0,1\} \quad \forall i \in I, j \in I \mid j > i$$
 
 
 ## Dissimilarity Problem Formulation
-If the max-p-regions problem is being formulated to minimize within-region dissimilarity, the following changes are made
+If the max-p-regions problem is being formulated to minimize within-region dissimilarity, the following changes are made:
 
 ### Parameters
 $$d_{ij} = \text{ dissimilarity relationship between areas } i \text{ and } j \text{, with } i, j \in I \text{ and } i<j$$
@@ -97,7 +97,7 @@ $$t_{ij} \geq \sum_{c \in C}x_i^{kc} + \sum_{c \in C}x_j^{kc} - 1  \quad \forall
 ### Bound Number of Regions
 Controlled by the parameter `bound_num_regions`
 
-This method provides an tighter upper bound for the number of regions $m$, with the equation below. Finding a smaller value of $m$ reduce the dimensionality of the optimization problem.
+This method provides a tighter upper bound for the number of regions $m$, with the equation below. Finding a smaller value of $m$ reduces the dimensionality of the optimization problem.
 
 $$m = \sum_{i \in I} (\mathbb{𝟙}\{l_i \geq \tau\}) + \left\lfloor \frac{\sum_{i \in I} (l_i \cdot \mathbb{𝟙}\{l_i < \tau\})}{\tau} \right\rfloor$$
 
@@ -106,29 +106,29 @@ In this equation, $\mathbb{𝟙}\{A\}$ represents an indicator function, where t
 ### Bound Maximum Contiguity Order
 Controlled by the parameter `bound_contiguity`
 
-This method finds a tighter bound for the maximium contiguity order $q$, again reducing the dimensionality of the optimization problem. The bound can be determined by finding the longest acyclic path of input areas that cannot be split into multiple regions. In this implementation, this is accomplished through and exhaustive breadth-first search of the adjacency graph. In very large problem instances, this is not computationally feasible. While these cases are also likely too large to solve using exact methods, an alternate aspatial bound is possible. At this time, an aspatial bound is left for future improvement.
+This method finds a tighter bound for the maximium contiguity order $q$, again reducing the dimensionality of the optimization problem. The bound can be determined by finding the longest acyclic path of input areas that cannot be split into multiple regions. In this implementation, this is accomplished through and exhaustive breadth-first search of the adjacency graph. In very large problem instances, this is not computationally feasible. While these cases are also likely too large to solve using exact methods, an alternate aspatial bound is possible. At this time, an aspatial bound is not yet implemented.
 
 ### Merge Leaf Nodes
 Controlled by the parameter `merge_leaves`
 
-This method performs a preprocessing step where some input areas are merged together before model construction. For ayd input area $i$ such that $l_i < \tau$ and $|N_i| = 1$, the input area can be merged with its only neighbor. In all feasible problem solutions these two areas must be assigned to the same region
+This method performs a preprocessing step where some input areas are merged together before model construction. For any input area $i$ such that $l_i < \tau$ and $|N_i| = 1$, the input area can be merged with its only neighbor. In all feasible problem solutions these two areas must be assigned to the same region
 
 ### Preassign Root Areas
 Controlled by the parameter `preassign_roots`
 
-A region in the optimal solution will never contain muliple areas that have a spatially extensive attribute the meets the region threshold. This means thateach input area $i$ that meets the threshold can be assigned as a root of their own region $k$ with the constraint $x_i^{k0} = 1$. In the case where no areas meet the threshold, one arbitrary area can be assigned as a region root. In this implementation, the area with the largest spatially extensive attribute will be preassigned.
+A region in the optimal solution will never contain muliple areas that have a spatially extensive attribute that meets the region threshold. This means that each input area $i$ that meets the threshold can be assigned as a root of its own region $k$ with the constraint $x_i^{k0} = 1$. In the case where no areas meet the threshold, one arbitrary area can be assigned as a region root. In this implementation, the area with the largest spatially extensive attribute will be preassigned.
 
 ### Exclude Areas as Roots
 Controlled by the parameter `exclude_roots`
 
-Similarity to preassigning roots, some areas can be excluded from being roots. We know that for any contiguous set of input areas with a total spatially extensive attribute below the threshold, a version of the optimal solution exists where none of these areas are the root of any region. Multiple contiguuous sets of these input areas can exist in the same problem. In this implementation, the set of excluded roots $X$ is identified through a greedy approach. To exclude set $X$ from being region roots, the following constraints can be added.
+Similarly to preassigning roots, some areas can be excluded from being roots. We know that for any contiguous set of input areas with a total spatially extensive attribute below the threshold, a version of the optimal solution exists where none of these areas are the root of any region. Multiple contiguous sets of these input areas can exist in the same problem. In this implementation, the set of excluded roots $X$ is identified through a greedy approach. To exclude set $X$ from being region roots, the following constraints can be added.
 
 $$\sum_{k \in K}x_i^{k0} = 0 \quad \forall i \in X$$
 
 ### Maximize Root Area
 Controlled by the parameter `max_root`
 
-We can break the symmetry by requiring a specific area is the root of each node, this will be the largest value of $\hat{l}_i$. In my thesis $\hat{l}_i = l_i$, but for this implementation $\hat{l}_i = n - i$. This change makes the strategy more applicable when there are a large number of tied values in $l$. The following constraints are used to break this symmetry
+We can break the symmetry by requiring a specific area to be the root of each node, this will be the largest value of $\hat{l}_i$. In my thesis $\hat{l}_i = l_i$, but for this implementation $\hat{l}_i = n - i$. This change makes the strategy more applicable when there are a large number of tied values in $l$.
 
 $$\sum_{j \in I}\hat{l}_j x_j^{k0} \geq \hat{l}_i x_i^{kc} \quad \forall i \in I, k \in K, c \in C \mid c > 0$$
 
@@ -144,7 +144,6 @@ $$n(1 - x_i^{kc}) \geq \sum_{j \in N_i}\sum_{d=0}^{c-2} x_j^{kd} \quad \forall i
 ### Sort Region Roots
 Controlled by the parameter `sort_region_roots`
 
-The symmetry can further be reduced by sorting the regions by descending values of $\hat{l}_i$. Like maximize root area,  $\hat{l}_i = l_i$ in my thesis, but  $\hat{l}_i = n - i$ here. The regions order symmetry can be broken by adding the following constraints.
-
+The symmetry can further be reduced by sorting the regions by descending values of $\hat{l}_i$. Like maximize root area,  $\hat{l}_i = l_i$ in my thesis, but  $\hat{l}_i = n - i$ here. The region order symmetry can be broken by adding the following constraints:
 
 $$\sum_{i \in I}\sum_{c \in C} \hat{l}_ix_i^{(k-1)c} \geq \sum_{i \in I}\sum_{c \in C} \hat{l}_ix_i^{kc} \quad \forall k \in K \mid k > 1$$

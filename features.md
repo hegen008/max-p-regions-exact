@@ -13,14 +13,13 @@
 - [x] Exclude Roots
 - [x] Sort Regions
 - [x] Maximize Root Node
-- [x] Minimize Adjacency Order
+- [x] Minimize Contiguity Order
 
 ### Additional Strengthening Strategies from Thesis
 - [ ] Split independent subproblems
 - [ ] Reduce size of t
 - [ ] Double bound t
 - [ ] Lower bound solution
-- [ ] Inverse objective
 
 ### Broad Application
 - [x] Use similarity or disimilarity - **MVP**
@@ -62,13 +61,11 @@
 - [ ] Allow disjoint solving where progress is saved
 
 ### Extra Reformulations not from Thesis
-- [ ] Both types of sorting regions
-- [ ] Independent splits with non-adjacent similarities
-- [ ] Parallelize independent splits
 - [ ] Convert t to continuous <= 1
 - [ ] Two phase solve
 - [ ] Iterative bounding of similarities
 - [ ] Seed with heuristic
+- [ ] Aspatial bound for q
 
 ### Testing
 - [ ] Full solves feasible, infeasible, time limit, memory limit

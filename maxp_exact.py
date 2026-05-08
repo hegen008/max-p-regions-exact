@@ -10,7 +10,7 @@ import geopandas as gpd
 # This class constructs and solves the max-p-regions problem using an exact MILP solvers
 # The strengthening methods and algorithms are based on my honors thesis at the Univeristy of Minnesota: 
 # Strengthening the Max-P-Regions Problem for the Confidentiality of Census Microdata (2026)
-# Author: Arlan Hegenbarth
+# Author: Arlan Hegenbarth (hegen008@umn.edu)
 
 def _bound_num_regions(spatial_attr, threshold):
     """
