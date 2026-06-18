@@ -466,6 +466,7 @@ class MaxPExact():
         self.weight_factor = 10**(1 + np.floor(np.log10(np.sum(np.triu(self.sim_mat, k=1)))))
         self._obj_adj = 0
         self.status = "Unconstructed"
+        self.contiguity_model = None
 
         if self.dissimilarity: # Use negative values, but adjust the objective result
             self._obj_adj += np.sum(np.triu(self.sim_mat, k=1))
@@ -515,10 +516,10 @@ class MaxPExact():
         return instance
 
 
-    # construct MILP model
-    def construct(self, config):
+    # construct MILP model - order contiguity model
+    def construct_order(self, config):
         """
-        Constructs a MILP formulation for the max-p-regions problem instance
+        Constructs a MILP formulation for the max-p-regions problem instance using an order contiguity model
 
         Parameters
         ----------
@@ -526,6 +527,8 @@ class MaxPExact():
         config: maxp_exact.MaxPConfig object, required
             A MaxPConfig object for the strategies used to construct the MILP Problem
         """
+        self.contiguity_model = "Order"
+
         # Copy input for modification
         copy_spatial_attr = deepcopy(self.spatial_attr)
         copy_sim_mat = deepcopy(self.sim_mat)
@@ -567,7 +570,7 @@ class MaxPExact():
         # Objective function
         self.model += lpSum(self.x[i][j][0] for i in self._I_set for j in self._K_set) * self.weight_factor + lpSum(self.t[i,j] * copy_sim_mat[i][j] for i in self._I_set for j in self._I_set if j > i), "Objective"
 
-        # Define base model constraints
+        # Define model constraints
         self.model.extend([ # Single Root Constraints
             lpSum(self.x[i][k][0] for i in self._I_set) <= 1
             for k in self._K_set
@@ -644,6 +647,82 @@ class MaxPExact():
         # Save status as no solution
         self.status = LpSolution[0]
 
+    # construct MILP model - tree contiguity model
+    def construct_tree(self):
+        """
+        Constructs a MILP formulation for the max-p-regions problem instance using a tree contiguity model
+
+        """
+        self.contiguity_model = "Tree"
+
+        # Copy input for modification
+        copy_spatial_attr = deepcopy(self.spatial_attr)
+        copy_sim_mat = deepcopy(self.sim_mat)
+        copy_spatial_weights = deepcopy(self.spatial_weights)
+
+        self._index_mapping = {i:{i} for i in range(self.num_areas)}
+
+        # Define iterative ranges
+        self._I_set = range(len(copy_spatial_attr))
+        self._K_set = range(len(copy_spatial_attr))
+
+        # Initialize model
+        self.model = LpProblem("MaxP_Model", LpMaximize)
+
+        # Decision variables
+        self.x = LpVariable.dicts("var_x", (self._I_set, self._I_set), cat="Binary")
+        self.t = LpVariable.dicts("var_t", (self._I_set, self._I_set), cat="Binary")
+        self.u = LpVariable.dicts("var_u", (self._I_set), cat="Integer", lowBound=1)
+        self.p = LpVariable("var_p", cat="Integer")
+
+        # Objective function
+        self.model += self.p * self.weight_factor + lpSum(self.t[i][j] * copy_sim_mat[i][j] for i in self._I_set for j in self._I_set if j > i), "Objective"
+
+        # Define model constraints
+        self.model.extend([ # Set number of links in tree
+            lpSum(self.x[i][j] for i in self._I_set for j in copy_spatial_weights[i]) == len(copy_spatial_attr) - self.p
+        ]) 
+        self.model.extend([ # Each area only has one outflow
+            lpSum(self.x[i][j] for j in copy_spatial_weights[i]) <= 1
+            for i in self._I_set
+        ])
+        self.model.extend([ # Enforce triangular relationships in t
+            self.t[i][j] + self.t[i][g] - self.t[j][g] <= 1
+            for i in self._I_set
+            for j in self._I_set if i != j
+            for g in self._I_set if i != g
+        ])
+        self.model.extend([ # t must be symmetrical
+            self.t[i][j] == self.t[j][i]
+            for i in self._I_set
+            for j in self._I_set if i != j
+        ])
+        self.model.extend([ # Edges between regions must have zero flow
+            self.x[i][j] - self.t[i][j] <= 0
+            for i in self._I_set
+            for j in copy_spatial_weights[i]
+        ])
+        self.model.extend([ # Assign orders (u)
+            self.u[i] - self.u[j] - 2*self.x[i][j] <= 0
+            for i in self._I_set
+            for j in copy_spatial_weights[i]
+        ])
+        self.model.extend([ # Upper bound order (u)
+            self.u[i] <= len(self.spatial_attr) - self.p
+            for i in self._I_set
+        ])
+        self.model.extend([ # Diagonal of t must be 1
+            self.t[i][i] == 1
+            for i in self._I_set
+        ])
+        self.model.extend([ # Threshold constraints
+            lpSum(self.t[i][j] * copy_spatial_attr[j] for j in self._I_set) >= self.threshold
+            for i in self._I_set
+        ])
+
+        # Save status as no solution
+        self.status = LpSolution[0]
+
     # solve MIP model
     def solve(self, time, abs_gap=1e-7, rel_gap=1e-4):
         """
@@ -664,17 +743,31 @@ class MaxPExact():
         self.model.solve(HiGHS(timeLimit=time, msg=True, keepFiles=False, options=[f'mip_abs_gap={abs_gap}', f'mip_rel_gap={rel_gap}']))
 
         # Derive Result
-        self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
+        if self.contiguity_model == "Order":
+            self.maxp = int(value(lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set)))
+        if self.contiguity_model == "Tree":
+            self.maxp = int(value(self.p))
         self.obj = value(self.model.objective) + self._obj_adj 
         self.status = LpSolution[self.model.sol_status]
         if self.status == "Optimal Solution Found":
             self.optimal = True
 
         # Extract and Standardize Solution
-        assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
-        for i,k in assigned:
-            for ind in self._index_mapping[i]:
-                self.regions[ind] = k
+        if self.contiguity_model == "Order":
+            assigned = {(i,k) for i in self._I_set for k in self._K_set for c in self._C_set if value(self.x[i][k][c]) > 0.9}
+            for i,k in assigned:
+                for ind in self._index_mapping[i]:
+                    self.regions[ind] = k
+        if self.contiguity_model == "Tree":
+            assigned = set()
+            reg_ind = 0
+            for i in self._I_set:
+                if i not in assigned:
+                    for j in self._I_set:
+                        if int(value(self.t[i][j])) == 1:
+                            self.regions[j] == reg_ind
+                            assigned |= {j}
+
         self.regions = _standardize_solution(self.regions)
 
     
