@@ -690,7 +690,7 @@ class MaxPExact():
             self.t[i][j] + self.t[i][g] - self.t[j][g] <= 1
             for i in self._I_set
             for j in self._I_set if i != j
-            for g in self._I_set if i != g
+            for g in self._I_set if j != g
         ])
         self.model.extend([ # t must be symmetrical
             self.t[i][j] == self.t[j][i]
@@ -703,21 +703,27 @@ class MaxPExact():
             for j in copy_spatial_weights[i]
         ])
         self.model.extend([ # Assign orders (u)
-            self.u[i] - self.u[j] - 2*self.x[i][j] <= 0
+            self.u[i] - self.u[j] + len(copy_spatial_attr) * self.x[i][j] + (len(copy_spatial_attr) - 2) * self.x[j][i] <= len(copy_spatial_attr) - 1
             for i in self._I_set
             for j in copy_spatial_weights[i]
         ])
         self.model.extend([ # Upper bound order (u)
-            self.u[i] <= len(self.spatial_attr) - self.p
+            self.u[i] + self.p <= len(copy_spatial_attr)
             for i in self._I_set
         ])
-        self.model.extend([ # Diagonal of t must be 1
-            self.t[i][i] == 1
+        self.model.extend([ # Set diadonal of t
+            self.t[i][i] <= 1 - lpSum(self.x[i][j] for j in copy_spatial_weights[i])
             for i in self._I_set
         ])
         self.model.extend([ # Threshold constraints
-            lpSum(self.t[i][j] * copy_spatial_attr[j] for j in self._I_set) >= self.threshold
+            copy_spatial_attr[i] + lpSum(self.t[i][j] * copy_spatial_attr[j] for j in self._I_set if i != j) >= self.threshold
             for i in self._I_set
+        ])
+        self.model.extend([
+            self.p == lpSum(self.t[i][i] for i in self._I_set)
+        ])
+        self.model.extend([
+            self.p == 5
         ])
 
         # Save status as no solution
