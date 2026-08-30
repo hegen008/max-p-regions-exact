@@ -565,7 +565,7 @@ class MaxPExact():
         self.t = LpVariable.dicts("var_t", [(i, j) for i in self._I_set for j in self._I_set if j > i], cat="Binary")
 
         # Objective function
-        self.model += lpSum(self.x[i][j][0] for i in self._I_set for j in self._K_set) * self.weight_factor + lpSum(self.t[i,j] * copy_sim_mat[i][j] for i in self._I_set for j in self._I_set if j > i), "Objective"
+        self.model += lpSum(self.x[i][k][0] for i in self._I_set for k in self._K_set) * self.weight_factor + lpSum(self.t[i,j] * copy_sim_mat[i][j] for i in self._I_set for j in self._I_set if j > i), "Objective"
 
         # Define base model constraints
         self.model.extend([ # Single Root Constraints
